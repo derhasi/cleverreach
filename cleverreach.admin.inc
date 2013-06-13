@@ -23,7 +23,7 @@ function _cleverreach_admin_overview() {
             $result->active_count, 
             $result->inactive_count, 
             date("Y-m-d H:i:s", $result->last_mailing), 
-            date("Y-m-d H:i:s", $result->last_changed)
+            date("Y-m-d H:i:s", $result->last_changed),
         );
     }
     $group_rows = $group_row;
