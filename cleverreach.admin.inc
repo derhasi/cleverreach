@@ -1,4 +1,16 @@
 <?php
+/**
+ * @file
+ * This file contains admin functions.
+ */
+
+/**
+* Show admin settings page
+* 
+* @return
+*   A well themed CRUD table
+* 
+*/
 function _cleverreach_admin_overview() {
     $group_row = array();
     $results = db_select('cleverreach_groups', 'g')
