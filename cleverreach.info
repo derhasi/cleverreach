@@ -1,1 +1,4 @@
-name = CleverReach
+name = CleverReach Module
+core = 7.x
+description = Helper module between drupal and the cleverreach api
+configure = admin/config/services/cleverreach/settings
