@@ -1,101 +1,115 @@
 <?php
+
+/**
+ * @file
+ * Install file for cleverreach module.
+ */
+
+/**
+ * Implements hook_schema().
+ */
 function cleverreach_schema() {
-    $schema['cleverreach_block_forms'] = array(
-        'description' => 'cleverreach block forms', 
-        'fields' => array(
-            'bid' => array(
-                'description' => 'The identifier for the cr block', 
-                'type' => 'serial', 
-                'unsigned' => TRUE, 
-                'not null' => TRUE,
-            ), 
-            'listid' => array(
-                'description' => 'the group id', 
-                'type' => 'int', 
-            ), 
-            'fields' => array(
-                'description' => 'field data array', 
-                'type' => 'text', 
-            ),
-            'active' => array(
-                'description' => 'is the block active',
-                'type' => 'int',
-                'not null' => TRUE,
-                'default' => 1,
-            ), 
-        ), 
-        'indexes' => array(), 
-        'unique keys' => array(), 
-        'foreign keys' => array(), 
-        'primary key' => array('bid'),
-    );
-    $schema['cleverreach_groups'] = array(
-        'description' => 'cleverreach sync groups', 
-        'fields' => array(
-            'gid' => array(
-                'description' => 'The identifier', 
-                'type' => 'serial', 
-                'unsigned' => TRUE, 
-                'not null' => TRUE,
-            ), 
-            'crgid' => array(
-                'description' => 'the cleverreach group id',
-                'type' => 'int',
-                'not null' => TRUE,
-                'default' => 0,
-            ),
-            'name' => array(
-                'description' => 'the group name', 
-                'type' => 'varchar', 
-                'length' => 255,
-                'default' => '',
-            ), 
-            'attributes' => array(
-                'description' => 'group attributes',
-                'type' => 'text'
-            ),
-            'active_count' => array(
-                'description' => 'active counts', 
-                'type' => 'int', 
-                'size' => 'big', 
-                'default' => 0,
-            ), 
-            'inactive_count' => array(
-                'description' => 'inactive counts', 
-                'type' => 'int', 
-                'size' => 'big', 
-                'default' => 0,
-            ), 
-            'last_mailing' => array(
-                'description' => 'timestamp last mailing',
-                'type' => 'int',
-                'not null' => TRUE,
-                'default' => 0,
-            ),
-            'last_changed' => array(
-                'description' => 'timestamp last changed',
-                'type' => 'int',
-                'not null' => TRUE,
-                'default' => 0,
-            ),
-        ), 
-        'indexes' => array(), 
-        'unique keys' => array(), 
-        'foreign keys' => array(), 
-        'primary key' => array('gid'),
-    );
-    return $schema;
+  $schema['cleverreach_block_forms'] = array(
+    'description' => 'cleverreach block forms',
+    'fields' => array(
+      'bid' => array(
+        'description' => 'The identifier for the cr block',
+        'type' => 'serial',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ),
+      'listid' => array(
+        'description' => 'the group id',
+        'type' => 'int',
+      ),
+      'fields' => array(
+        'description' => 'field data array',
+        'type' => 'text',
+      ),
+      'active' => array(
+        'description' => 'is the block active',
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 1,
+      ),
+    ),
+    'indexes' => array(),
+    'unique keys' => array(),
+    'foreign keys' => array(),
+    'primary key' => array('bid'),
+  );
+  $schema['cleverreach_groups'] = array(
+    'description' => 'cleverreach sync groups',
+    'fields' => array(
+      'gid' => array(
+        'description' => 'The identifier',
+        'type' => 'serial',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ),
+      'crgid' => array(
+        'description' => 'the cleverreach group id',
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'name' => array(
+        'description' => 'the group name',
+        'type' => 'varchar',
+        'length' => 255,
+        'default' => '',
+      ),
+      'attributes' => array(
+        'description' => 'group attributes',
+        'type' => 'text',
+      ),
+      'active_count' => array(
+        'description' => 'active counts',
+        'type' => 'int',
+        'size' => 'big',
+        'default' => 0,
+      ),
+      'inactive_count' => array(
+        'description' => 'inactive counts',
+        'type' => 'int',
+        'size' => 'big',
+        'default' => 0,
+      ),
+      'last_mailing' => array(
+        'description' => 'timestamp last mailing',
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'last_changed' => array(
+        'description' => 'timestamp last changed',
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+    ),
+    'indexes' => array(),
+    'unique keys' => array(),
+    'foreign keys' => array(),
+    'primary key' => array('gid'),
+  );
+  return $schema;
 }
 
+/**
+ * Implements hook_install().
+ */
 function cleverreach_install() {
-    variable_set('cleverreach_api_key', '');
-    variable_set('cleverreach_wsdl_url', '');
-    variable_set('cleverreach_last_group_fetch', '');
+  variable_set('cleverreach_api_key', '');
+  variable_set('cleverreach_wsdl_url', '');
+  variable_set('cleverreach_last_group_fetch', '');
 }
 
+/**
+ * Implements hook_uninstall().
+ */
 function cleverreach_uninstall() {
-    variable_del('cleverreach_api_key');
-    variable_del('cleverreach_wsdl_url');
-    variable_del('cleverreach_last_group_fetch');
+  variable_del('cleverreach_api_key');
+  variable_del('cleverreach_wsdl_url');
+  variable_del('cleverreach_last_group_fetch');
 }
-?>
