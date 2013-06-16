@@ -172,7 +172,7 @@ function _cleverreach_group_update() {
 /**
  * Function to get a group name by id. 
  */
-function _cleverreach_get_groupName($listid) {
+function _cleverreach_get_group_name($listid) {
   if (empty($listid) || !is_numeric($listid)) {
     return FALSE;
   }
@@ -197,7 +197,7 @@ function cleverreach_block_info() {
     ->execute();
   foreach ($results as $result) {
     $blocks['cr_block_' . $result->bid] = array(
-      'info' => t('CleverReach: @grpname', array('@grpname' => _cleverreach_get_groupName($result->listid))),
+      'info' => t('CleverReach: @grpname', array('@grpname' => _cleverreach_get_group_name($result->listid))),
       'cache' => DRUPAL_NO_CACHE,
     );
   }
@@ -218,8 +218,8 @@ function cleverreach_block_view($delta = '') {
         ->condition('active', 1, '=')
         ->execute()
         ->fetchAssoc();
-      $block['subject'] = t('CleverReach: @grpname', array('@grpname' => _cleverreach_get_groupName($result['listid'])));
-      $block['content'] = drupal_get_form('_cleverreach_build_blockForm_' . $result['bid']);
+      $block['subject'] = t('CleverReach: @grpname', array('@grpname' => _cleverreach_get_group_name($result['listid'])));
+      $block['content'] = drupal_get_form('_cleverreach_build_block_form_' . $result['bid']);
     }
   }
   return $block;
@@ -228,11 +228,11 @@ function cleverreach_block_view($delta = '') {
 /**
  * Function for buildung the subscribing blockform. 
  */
-function _cleverreach_build_blockForm($form, &$form_state) {
+function _cleverreach_build_block_form($form, &$form_state) {
   $form = array();
   $form['#tree'] = TRUE;
   $tmp = explode("_", $form_state['build_info']['form_id']);
-  $bid = is_numeric($tmp[4]) ? $tmp[4] : 0;
+  $bid = is_numeric($tmp[5]) ? $tmp[5] : 0;
   $form['cr_form_wrapper'] = array(
     '#markup' => '',
     '#prefix' => '<div id="cr-block-form-wrapper-' . $bid . '">',
@@ -285,8 +285,8 @@ function _cleverreach_block_form_js($form, &$form_state) {
  */
 function cleverreach_forms($form_id, $args) {
   $forms = array();
-  if (substr($form_id, 0, 29) == '_cleverreach_build_blockForm_') {
-    $forms[$form_id] = array('callback' => '_cleverreach_build_blockForm');
+  if (substr($form_id, 0, 30) == '_cleverreach_build_block_form_') {
+    $forms[$form_id] = array('callback' => '_cleverreach_build_block_form');
   }
   return $forms;
 }
@@ -350,4 +350,15 @@ function _cleverreach_group_assign($form, &$form_state) {
   else {
     drupal_set_message(t('Error: Your submission failed.'), 'error');
   }
+}
+
+/**
+ * Implements hook_theme().
+ */
+function cleverreach_theme($existing, $type, $theme, $path) {
+  return array(
+    'addblock_theming' => array(
+      'render element' => 'element',
+    ),
+  );
 }

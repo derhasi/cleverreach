@@ -41,7 +41,7 @@ function _cleverreach_admin_overview() {
     ->execute();
   foreach ($results as $result) {
     $attr = '';
-    $name = _cleverreach_get_groupName($result->listid);
+    $name = _cleverreach_get_group_name($result->listid);
     $active = ($result->active == 1) ? t('Yes') : t('No');
     $fields = unserialize($result->fields);
     if (count($fields) > 0) {
@@ -151,17 +151,6 @@ function _cleverreach_add_block_form($form, &$form_state) {
     '#submit' => array('_cleverreach_add_block_form_submit'),
   );
   return $form;
-}
-
-/**
- * Implements hook_theme().
- */
-function cleverreach_theme($existing, $type, $theme, $path) {
-  return array(
-    'addblock_theming' => array(
-      'render element' => 'element',
-    ),
-  );
 }
 
 /**
