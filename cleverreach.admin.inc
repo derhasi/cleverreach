@@ -9,9 +9,8 @@
  */
 function _cleverreach_admin_overview() {
   $group_row = array();
-  $results = db_select('cleverreach_groups', 'g')
-    ->fields('g')
-    ->execute();
+  $results = db_query('SELECT * FROM {cleverreach_groups} g');
+
   foreach ($results as $result) {
     $group_row[] = array(
       $result->crgid,
@@ -22,6 +21,7 @@ function _cleverreach_admin_overview() {
       date("Y-m-d H:i:s", $result->last_changed),
     );
   }
+
   $group_rows = $group_row;
   $group_header = array(
     t('CR GroupID'),
@@ -36,14 +36,14 @@ function _cleverreach_admin_overview() {
     'rows' => $group_rows,
   ));
   $block_row = array();
-  $results = db_select('cleverreach_block_forms', 'bf')
-    ->fields('bf')
-    ->execute();
+  $results = db_query('SELECT * FROM {cleverreach_block_forms} bf');
+
   foreach ($results as $result) {
     $attr = '';
     $name = _cleverreach_get_group_name($result->listid);
     $active = ($result->active == 1) ? t('Yes') : t('No');
     $fields = unserialize($result->fields);
+
     if (count($fields) > 0) {
       foreach ($fields as $key => $value) {
         $attr .= $value["name"] . ", ";
@@ -53,6 +53,7 @@ function _cleverreach_admin_overview() {
     else {
       $attr = '-';
     }
+
     $block_row[] = array(
       $name,
       $attr,
@@ -62,6 +63,7 @@ function _cleverreach_admin_overview() {
       l(t('Delete'), 'admin/config/services/cleverreach/delblock/' . $result->bid),
     );
   }
+
   $block_rows = $block_row;
   $block_header = array(
     t('Group'),
@@ -85,12 +87,12 @@ function _cleverreach_add_block_form($form, &$form_state) {
   $form = array();
   $form['#tree'] = TRUE;
   $options = array();
-  $results = db_select('cleverreach_groups', 'g')
-    ->fields('g')
-    ->execute();
+  $results = db_query('SELECT * FROM {cleverreach_groups} g');
+
   foreach ($results as $result) {
     $options[$result->crgid] = $result->name;
   }
+
   $form['cr_grp_wrapper'] = array(
     '#type' => 'fieldset',
     '#theme' => 'addblock_theming',
@@ -110,14 +112,13 @@ function _cleverreach_add_block_form($form, &$form_state) {
       'effect' => 'fade',
     ),
   );
+
   if (isset($form_state['values']['cr_grp_wrapper']['cr_block_grp'])) {
     $gid = is_numeric($form_state['values']['cr_grp_wrapper']['cr_block_grp']) ? $form_state['values']['cr_grp_wrapper']['cr_block_grp'] : NULL;
+
     if ($gid != NULL) {
-      $attributes = db_select("cleverreach_groups", "grps")
-        ->fields("grps", array("attributes"))
-        ->condition("crgid", $gid)
-        ->execute()
-        ->fetchField();
+      $attributes = db_query('SELECT grps.attributes FROM {cleverreach_groups} grps WHERE grps.crgid = :crgid', array(':crgid' => $gid))->fetchField();
+
       foreach (unserialize($attributes) as $key => $value) {
         $form['cr_grp_wrapper']['table'][$value["key"]]['select'] = array(
           '#type' => 'checkbox',
@@ -134,8 +135,11 @@ function _cleverreach_add_block_form($form, &$form_state) {
           '#value' => $value["type"],
         );
       }
+
     }
+
   }
+
   $form['cr_block_status'] = array(
     '#type' => 'radios',
     '#title' => t('Active Block'),
@@ -159,10 +163,13 @@ function _cleverreach_add_block_form($form, &$form_state) {
 function theme_addblock_theming($variables) {
   $output = '';
   $output .= drupal_render($variables['element']['cr_block_grp']);
+
   if (isset($variables['element']['table'])) {
     $rows = array();
     $header = array('', t('Name'), t('Type'), t('Variable'), t('Required'));
+
     foreach ($variables['element']['table'] as $key => $value) {
+
       if (substr($key, 0, 1) != '#' && is_array($value)) {
         $rows[] = array(
           drupal_render($value["select"]),
@@ -172,13 +179,16 @@ function theme_addblock_theming($variables) {
           drupal_render($value["required"]),
         );
       }
+
     }
+
     $output .= theme('table', array(
       'header' => $header,
       'rows' => $rows,
       'caption' => t('Select Fields'),
     ));
   }
+
   return $output;
 }
 
@@ -187,11 +197,15 @@ function theme_addblock_theming($variables) {
  */
 function _cleverreach_add_block_form_submit($form, &$form_state) {
   $fields = array();
+
   foreach ($form_state['values']['cr_grp_wrapper']['table'] as $key => $value) {
+
     if ($value["select"] == 1) {
       $fields[] = array('name' => $key, 'required' => $value["required"]);
     }
+
   }
+
   $query = db_insert('cleverreach_block_forms')->fields(array(
     'listid',
     'fields',
@@ -220,21 +234,17 @@ function _cleverreach_add_block_form_js($form, &$form_state) {
 function _cleverreach_edit_block_form($form, &$form_state, $arg) {
   $bid = (is_numeric($arg) && isset($arg)) ? $arg : 0;
   $form_state['storage']['bid'] = $bid;
-  $data = db_select("cleverreach_block_forms", "bf")
-    ->fields("bf")
-    ->condition("bid", $bid)
-    ->execute()
-    ->fetchAssoc();
+  $data = db_query('SELECT * FROM {cleverreach_block_forms} bf WHERE bf.bid = :bid', array(':bid' => $bid))->fetchAssoc();
   $form = array();
   $form['#tree'] = TRUE;
   $options = array();
-  $results = db_select('cleverreach_groups', 'g')
-    ->fields('g')
-    ->execute();
+  $results = db_query('SELECT * FROM {cleverreach_groups} g');
   $fields = unserialize($data["fields"]);
+
   foreach ($results as $result) {
     $options[$result->crgid] = $result->name;
   }
+
   $form['cr_grp_wrapper'] = array(
     '#type' => 'fieldset',
     '#theme' => 'addblock_theming',
@@ -255,25 +265,30 @@ function _cleverreach_edit_block_form($form, &$form_state, $arg) {
       'effect' => 'fade',
     ),
   );
+
   if (isset($form_state['values']['cr_grp_wrapper']['cr_block_grp']) || isset($data["listid"])) {
     $gid = (isset($form_state['values']['cr_grp_wrapper']['cr_block_grp']) && is_numeric($form_state['values']['cr_grp_wrapper']['cr_block_grp'])) ? $form_state['values']['cr_grp_wrapper']['cr_block_grp'] : $data["listid"];
+
     if ($gid != NULL) {
-      $attributes = db_select("cleverreach_groups", "grps")
-        ->fields("grps", array("attributes"))
-        ->condition("crgid", $gid)
-        ->execute()
-        ->fetchField();
+      $attributes = db_query('SELECT grps.attributes FROM {cleverreach_groups} grps WHERE grps.crgid = :crgid', array(':crgid' => $gid))->fetchField();
+
       foreach (unserialize($attributes) as $key => $value) {
         $selected = 0;
         $required = 0;
+
         foreach ($fields as $keyd => $valued) {
+
           if ($value["key"] == $valued["name"]) {
             $selected = 1;
+
             if ($valued["required"] == 1) {
               $required = 1;
             }
+
           }
+
         }
+
         $form['cr_grp_wrapper']['table'][$value["key"]]['select'] = array(
           '#type' => 'checkbox',
           '#default_value' => $selected,
@@ -292,7 +307,9 @@ function _cleverreach_edit_block_form($form, &$form_state, $arg) {
         );
       }
     }
+
   }
+
   $form['cr_block_status'] = array(
     '#type' => 'radios',
     '#title' => t('Active Block'),
@@ -316,14 +333,18 @@ function _cleverreach_edit_block_form($form, &$form_state, $arg) {
 function _cleverreach_edit_block_form_submit($form, &$form_state) {
   $bid = $form_state['storage']['bid'];
   $fields = array();
+
   foreach ($form_state['values']['cr_grp_wrapper']['table'] as $key => $value) {
+
     if ($value["select"] == 1) {
       $fields[] = array(
         'name' => $key,
         'required' => $value["required"],
       );
     }
+
   }
+
   $query = db_update('cleverreach_block_forms')
     ->fields(array(
       'listid' => $form_state["values"]["cr_grp_wrapper"]["cr_block_grp"],
@@ -353,6 +374,7 @@ function _cleverreach_del_block_form($form, &$form_state, $arg) {
  * Implements hook_form_submit().
  */
 function _cleverreach_del_block_form_submit($form, &$form_state) {
+
   if ($form_state['values']['bid'] != 0) {
     $delta = 'cr_block_' . $form_state['values']['bid'];
     db_delete('cleverreach_block_forms')
@@ -373,6 +395,7 @@ function _cleverreach_del_block_form_submit($form, &$form_state) {
   else {
     drupal_goto('admin/config/services/cleverreach');
   }
+
 }
 
 /**

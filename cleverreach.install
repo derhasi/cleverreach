@@ -33,9 +33,6 @@ function cleverreach_schema() {
         'default' => 1,
       ),
     ),
-    'indexes' => array(),
-    'unique keys' => array(),
-    'foreign keys' => array(),
     'primary key' => array('bid'),
   );
   $schema['cleverreach_groups'] = array(
@@ -88,9 +85,6 @@ function cleverreach_schema() {
         'default' => 0,
       ),
     ),
-    'indexes' => array(),
-    'unique keys' => array(),
-    'foreign keys' => array(),
     'primary key' => array('gid'),
   );
   return $schema;
