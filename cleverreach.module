@@ -314,22 +314,22 @@ function _cleverreach_group_assign_validate($form, &$form_state) {
  */
 function _cleverreach_group_assign($form, &$form_state) {
   $source = variable_get('site_name', "CleverReach Drupal Module");
-  $listid = db_query('SELECT bf.listid FROM {cleverreach_block_forms} bf WHERE bf.bid = :bid', array(':bid' => $form_state['values']['cr_block_bid']))->fetchField();
-  $fields = db_query('SELECT bf.fields FROM {cleverreach_block_forms} bf WHERE bf.bid = :bid', array(':bid' => $form_state['values']['cr_block_bid']))->fetchField();
+  $listid = db_query('SELECT bf.listid FROM {cleverreach_block_forms} bf WHERE bf.bid = :bid', array(':bid' => $form_state['values']['cr_form_wrapper']['cr_block_bid']))->fetchField();
+  $fields = db_query('SELECT bf.fields FROM {cleverreach_block_forms} bf WHERE bf.bid = :bid', array(':bid' => $form_state['values']['cr_form_wrapper']['cr_block_bid']))->fetchField();
   $un_fields = unserialize($fields);
   $attr = array();
 
   if (count($un_fields) > 0) {
 
     foreach ($un_fields as $key => $value) {
-      $attr[] = array('key' => $value["name"], 'value' => $form_state['values'][$form_state['values']['cr_block_bid']]['cr_block_' . $value["name"] . '_' . $form_state['values']['cr_block_bid']]);
+      $attr[] = array('key' => $value["name"], 'value' => $form_state['values']['cr_form_wrapper'][$form_state['values']['cr_form_wrapper']['cr_block_bid']]['cr_block_' . $value["name"] . '_' . $form_state['values']['cr_form_wrapper']['cr_block_bid']]);
     }
 
   }
 
   if (count($attr) > 0) {
     $user = array(
-      "email" => $form_state['values'][$form_state['values']['cr_block_bid']]['cr_block_mail_' . $form_state['values']['cr_block_bid']],
+      "email" => $form_state['values']['cr_form_wrapper'][$form_state['values']['cr_form_wrapper']['cr_block_bid']]['cr_block_mail_' . $form_state['values']['cr_form_wrapper']['cr_block_bid']],
       "registered" => time(),
       "activated" => time(),
       "source" => $source,
@@ -338,7 +338,7 @@ function _cleverreach_group_assign($form, &$form_state) {
   }
   else {
     $user = array(
-      "email" => $form_state['input'][$form_state['values']['cr_block_bid']]['cr_block_mail_' . $form_state['values']['cr_block_bid']],
+      "email" => $form_state['values']['cr_form_wrapper'][$form_state['values']['cr_form_wrapper']['cr_block_bid']]['cr_block_mail_' . $form_state['values']['cr_form_wrapper']['cr_block_bid']],
       "registered" => time(),
       "activated" => time(),
       "source" => $source,
