@@ -352,7 +352,6 @@ function _cleverreach_edit_block_form($form, &$form_state, $arg) {
       $attributes = db_query('SELECT grps.attributes FROM {cleverreach_groups} grps WHERE grps.crgid = :crgid', array(':crgid' => $gid))->fetchField();
 
       foreach (unserialize($attributes) as $key => $value) {
-
         $display_options = '';
         $selected = 0;
         $required = 0;
@@ -435,7 +434,7 @@ function _cleverreach_edit_block_form($form, &$form_state, $arg) {
         $form['cr_grp_wrapper']['table'][$value["key"]]['display'] = array(
           '#type' => 'select',
           '#options' => $display_select,
-          '#default_value' => $display_options,
+          '#default_value' => (isset($display_options) && !empty($display_options)) ? $display_options : key($display_select),
           '#ajax' => array(
             'callback' => '_cleverreach_add_block_form_js',
             'wrapper' => 'cr-group-attribute-wrapper',
@@ -444,13 +443,17 @@ function _cleverreach_edit_block_form($form, &$form_state, $arg) {
           ),
         );
 
-        $display = isset($form_state['input']['cr_grp_wrapper']) ? $form_state['input']['cr_grp_wrapper']['table'][$value["key"]]['display'] : $display_options;
+        $display = isset($form_state['input']['cr_grp_wrapper']['table'][$value["key"]]['display']) ? $form_state['input']['cr_grp_wrapper']['table'][$value["key"]]['display'] : $display_options;
+
+        if (empty($display)) {
+          $display = key($display_select);
+        }
 
         if ($display == 'select') {
           $form['cr_grp_wrapper']['table'][$value["key"]]['display_options'] = array(
             '#type' => 'textarea',
             '#description' => t('Select options. One per line. key|value Example: men|Men'),
-            '#default_value' => $display_option_values[$value["key"]],
+            '#default_value' => isset($display_option_values[$value["key"]]) ? $display_option_values[$value["key"]] : '',
           );
         }
 
@@ -458,7 +461,7 @@ function _cleverreach_edit_block_form($form, &$form_state, $arg) {
           $form['cr_grp_wrapper']['table'][$value["key"]]['display_options'] = array(
             '#type' => 'textfield',
             '#description' => t('A default field value (optional)'),
-            '#default_value' => $display_option_values[$value["key"]],
+            '#default_value' => isset($display_option_values[$value["key"]]) ? $display_option_values[$value["key"]] : '',
           );
         }
 
