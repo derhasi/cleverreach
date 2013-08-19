@@ -258,12 +258,11 @@ function _cleverreach_build_block_form($form, &$form_state) {
   if (count($un_fields) > 0 && !empty($un_fields)) {
 
     foreach ($un_fields as $key => $value) {
-      $form['cr_form_wrapper'][$bid]['cr_block_' . $value["name"] . '_' . $bid] = array(
-        '#type' => 'textfield',
-        '#title' => ucfirst($value["name"]) . ":",
-        '#size' => 25,
-        '#required' => $value["required"],
-      );
+
+      if ($value["active"] == 1) {
+        $form['cr_form_wrapper'][$bid]['cr_block_' . $value["name"] . '_' . $bid] = _cleverreach_build_block_field($value);
+      }
+
     }
 
   }
@@ -322,7 +321,21 @@ function _cleverreach_group_assign($form, &$form_state) {
   if (count($un_fields) > 0) {
 
     foreach ($un_fields as $key => $value) {
-      $attr[] = array('key' => $value["name"], 'value' => $form_state['values']['cr_form_wrapper'][$form_state['values']['cr_form_wrapper']['cr_block_bid']]['cr_block_' . $value["name"] . '_' . $form_state['values']['cr_form_wrapper']['cr_block_bid']]);
+
+      if ($value["active"] == 1) {
+
+        if ($value["display"] == "date") {
+          $year = $form_state['values']['cr_form_wrapper'][$form_state['values']['cr_form_wrapper']['cr_block_bid']]['cr_block_' . $value["name"] . '_' . $form_state['values']['cr_form_wrapper']['cr_block_bid']]['year'];
+          $month = $form_state['values']['cr_form_wrapper'][$form_state['values']['cr_form_wrapper']['cr_block_bid']]['cr_block_' . $value["name"] . '_' . $form_state['values']['cr_form_wrapper']['cr_block_bid']]['month'];
+          $day = $form_state['values']['cr_form_wrapper'][$form_state['values']['cr_form_wrapper']['cr_block_bid']]['cr_block_' . $value["name"] . '_' . $form_state['values']['cr_form_wrapper']['cr_block_bid']]['day'];
+          $attr[] = array('key' => $value["name"], 'value' => $year . "-" . $month . "-" . $day);
+        }
+        else {
+          $attr[] = array('key' => $value["name"], 'value' => $form_state['values']['cr_form_wrapper'][$form_state['values']['cr_form_wrapper']['cr_block_bid']]['cr_block_' . $value["name"] . '_' . $form_state['values']['cr_form_wrapper']['cr_block_bid']]);
+        }
+
+      }
+
     }
 
   }
@@ -359,6 +372,54 @@ function _cleverreach_group_assign($form, &$form_state) {
 }
 
 /**
+ * Function for buildung the blockform fields. 
+ */
+function _cleverreach_build_block_field($field_data) {
+  $field = array(
+    '#title' => ucfirst($field_data["name"]) . ":",
+    '#required' => $field_data["required"],
+  );
+
+  if ($field_data["display"] == "textfield") {
+    $field['#type'] = 'textfield';
+    $field['#size'] = 25;
+    $field['#default_value'] = isset($field_data["display_options"]) ? $field_data["display_options"] : '';
+  }
+
+  elseif ($field_data["display"] == "select") {
+    $field['#type'] = 'select';
+    $field['#multiple'] = FALSE;
+    $options = explode("\n", $field_data["display_options"]);
+    $select_options = array();
+
+    foreach ($options as $key => $value) {
+      $tmp = explode("|", $value);
+
+      if (count($tmp) == 2) {
+        $select_options[trim($tmp[0])] = trim($tmp[1]);
+      }
+
+      else {
+        $select_options[trim($tmp[0])] = trim($tmp[0]);
+      }
+
+    }
+
+    $field['#options'] = isset($select_options) ? $select_options : array();
+  }
+
+  elseif ($field_data["display"] == "date") {
+    $field['#type'] = 'date';
+  }
+
+  else {
+    $field['#type'] = 'textfield';
+  }
+
+  return $field;
+}
+
+/**
  * Implements hook_theme().
  */
 function cleverreach_theme($existing, $type, $theme, $path) {
@@ -367,4 +428,18 @@ function cleverreach_theme($existing, $type, $theme, $path) {
       'render element' => 'element',
     ),
   );
+}
+
+/**
+ * Implements hook_contextual_links_view_alter().
+ */
+function cleverreach_contextual_links_view_alter(&$element, &$items) {
+
+  if (isset($element['#element']['#block']) && substr($element['#element']['#block']->delta, 0, 9) == "cr_block_") {
+    $element['#links']['cleverreach'] = array(
+      'title' => 'CleverReach: Edit block',
+      'href' => url('admin/config/services/cleverreach/editblock/' . $element['#element']['cr_form_wrapper']['cr_block_bid']['#value'], array('absolute' => TRUE)),
+    );
+  }
+
 }

@@ -46,10 +46,16 @@ function _cleverreach_admin_overview() {
 
     if (count($fields) > 0) {
       foreach ($fields as $key => $value) {
-        $attr .= $value["name"] . ", ";
+
+        if ($value["active"] == 1) {
+          $attr .= $value["name"] . ", ";
+        }
+
       }
+
       $attr = substr($attr, 0, -2);
     }
+
     else {
       $attr = '-';
     }
@@ -88,6 +94,7 @@ function _cleverreach_add_block_form($form, &$form_state) {
   $form['#tree'] = TRUE;
   $options = array();
   $results = db_query('SELECT * FROM {cleverreach_groups} g');
+  $display_option_values = array();
 
   foreach ($results as $result) {
     $options[$result->crgid] = $result->name;
@@ -120,6 +127,32 @@ function _cleverreach_add_block_form($form, &$form_state) {
       $attributes = db_query('SELECT grps.attributes FROM {cleverreach_groups} grps WHERE grps.crgid = :crgid', array(':crgid' => $gid))->fetchField();
 
       foreach (unserialize($attributes) as $key => $value) {
+
+        if ($value["type"] == "text") {
+          $display_select = array(
+            'textfield' => t('Textfield'),
+            'select' => t('Select box'),
+          );
+        }
+
+        elseif ($value["type"] == "number") {
+          $display_select = array(
+            'textfield' => t('Textfield'),
+          );
+        }
+
+        elseif ($value["type"] == "gender") {
+          $display_select = array(
+            'select' => t('Select box'),
+          );
+        }
+
+        elseif ($value["type"] == "date") {
+          $display_select = array(
+            'date' => t('Date select box'),
+          );
+        }
+
         $form['cr_grp_wrapper']['table'][$value["key"]]['select'] = array(
           '#type' => 'checkbox',
         );
@@ -134,6 +167,41 @@ function _cleverreach_add_block_form($form, &$form_state) {
           '#type' => 'hidden',
           '#value' => $value["type"],
         );
+        $form['cr_grp_wrapper']['table'][$value["key"]]['display'] = array(
+          '#type' => 'select',
+          '#options' => $display_select,
+          '#default_value' => key($display_select),
+          '#ajax' => array(
+            'callback' => '_cleverreach_add_block_form_js',
+            'wrapper' => 'cr-group-attribute-wrapper',
+            'method' => 'replace',
+            'effect' => 'fade',
+          ),
+        );
+
+        if (($form['cr_grp_wrapper']['table'][$value["key"]]['display']['#default_value'] == 'select') || isset($form_state['input']['cr_grp_wrapper']) && $form_state['input']['cr_grp_wrapper']['table'][$value["key"]]['display'] == 'select') {
+          $form['cr_grp_wrapper']['table'][$value["key"]]['display_options'] = array(
+            '#type' => 'textarea',
+            '#description' => t('Select options. One per line. key|value Example: men|Men'),
+          );
+        }
+
+        elseif (($form['cr_grp_wrapper']['table'][$value["key"]]['display']['#default_value'] == 'textfield') || isset($form_state['input']['cr_grp_wrapper']) && $form_state['input']['cr_grp_wrapper']['table'][$value["key"]]['display'] == 'textfield') {
+          $form['cr_grp_wrapper']['table'][$value["key"]]['display_options'] = array(
+            '#type' => 'textfield',
+            '#description' => t('A default field value (optional)'),
+          );
+        }
+
+        elseif (($form['cr_grp_wrapper']['table'][$value["key"]]['display']['#default_value'] == 'date')|| isset($form_state['input']['cr_grp_wrapper']) && $form_state['input']['cr_grp_wrapper']['table'][$value["key"]]['display'] == 'date') {
+          $form['cr_grp_wrapper']['table'][$value["key"]]['display_options'] = array(
+            '#type' => 'textfield',
+            '#default_value' => 'Y-m-d',
+            '#disabled' => TRUE,
+            '#description' => t('Date format, default: Y-m-d'),
+          );
+        }
+
       }
 
     }
@@ -166,7 +234,14 @@ function theme_addblock_theming($variables) {
 
   if (isset($variables['element']['table'])) {
     $rows = array();
-    $header = array('', t('Name'), t('Type'), t('Variable'), t('Required'));
+    $header = array(
+      '',
+      t('Name'),
+      t('Type'),
+      t('Variable'),
+      t('Required'),
+      t('Display'),
+    );
 
     foreach ($variables['element']['table'] as $key => $value) {
 
@@ -177,6 +252,7 @@ function theme_addblock_theming($variables) {
           $value["type"]["#value"],
           $value["var"]["#value"],
           drupal_render($value["required"]),
+          drupal_render($value["display"]) . drupal_render($value["display_options"]),
         );
       }
 
@@ -199,11 +275,13 @@ function _cleverreach_add_block_form_submit($form, &$form_state) {
   $fields = array();
 
   foreach ($form_state['values']['cr_grp_wrapper']['table'] as $key => $value) {
-
-    if ($value["select"] == 1) {
-      $fields[] = array('name' => $key, 'required' => $value["required"]);
-    }
-
+    $fields[] = array(
+      'name' => $key,
+      'required' => $value["required"],
+      'display' => $value["display"],
+      'display_options' => $value["display_options"],
+      'active' => $value["select"],
+    );
   }
 
   $query = db_insert('cleverreach_block_forms')->fields(array(
@@ -240,6 +318,7 @@ function _cleverreach_edit_block_form($form, &$form_state, $arg) {
   $options = array();
   $results = db_query('SELECT * FROM {cleverreach_groups} g');
   $fields = unserialize($data["fields"]);
+  $display_option_values = array();
 
   foreach ($results as $result) {
     $options[$result->crgid] = $result->name;
@@ -273,20 +352,68 @@ function _cleverreach_edit_block_form($form, &$form_state, $arg) {
       $attributes = db_query('SELECT grps.attributes FROM {cleverreach_groups} grps WHERE grps.crgid = :crgid', array(':crgid' => $gid))->fetchField();
 
       foreach (unserialize($attributes) as $key => $value) {
+
+        $display_options = '';
         $selected = 0;
         $required = 0;
 
         foreach ($fields as $keyd => $valued) {
 
           if ($value["key"] == $valued["name"]) {
-            $selected = 1;
+
+            if ($valued["active"] == 1) {
+              $selected = 1;
+            }
 
             if ($valued["required"] == 1) {
               $required = 1;
             }
 
+            if ($valued["display"] == 'select') {
+              $display_options = 'select';
+            }
+
+            elseif ($valued["display"] == 'textfield') {
+              $display_options = 'textfield';
+            }
+
+            elseif ($valued["display"] == 'date') {
+              $display_options = 'date';
+            }
+
+            else {
+              $display_options = 'textfield';
+            }
+
           }
 
+          $display_option_values[$valued["name"]] = $valued["display_options"];
+
+        }
+
+        if ($value["type"] == "text") {
+          $display_select = array(
+            'textfield' => t('Textfield'),
+            'select' => t('Select box'),
+          );
+        }
+
+        elseif ($value["type"] == "number") {
+          $display_select = array(
+            'textfield' => t('Textfield'),
+          );
+        }
+
+        elseif ($value["type"] == "gender") {
+          $display_select = array(
+            'select' => t('Select box'),
+          );
+        }
+
+        elseif ($value["type"] == "date") {
+          $display_select = array(
+            'date' => t('Date select box'),
+          );
         }
 
         $form['cr_grp_wrapper']['table'][$value["key"]]['select'] = array(
@@ -305,7 +432,47 @@ function _cleverreach_edit_block_form($form, &$form_state, $arg) {
           '#type' => 'hidden',
           '#value' => $value["type"],
         );
+        $form['cr_grp_wrapper']['table'][$value["key"]]['display'] = array(
+          '#type' => 'select',
+          '#options' => $display_select,
+          '#default_value' => $display_options,
+          '#ajax' => array(
+            'callback' => '_cleverreach_add_block_form_js',
+            'wrapper' => 'cr-group-attribute-wrapper',
+            'method' => 'replace',
+            'effect' => 'fade',
+          ),
+        );
+
+        $display = isset($form_state['input']['cr_grp_wrapper']) ? $form_state['input']['cr_grp_wrapper']['table'][$value["key"]]['display'] : $display_options;
+
+        if ($display == 'select') {
+          $form['cr_grp_wrapper']['table'][$value["key"]]['display_options'] = array(
+            '#type' => 'textarea',
+            '#description' => t('Select options. One per line. key|value Example: men|Men'),
+            '#default_value' => $display_option_values[$value["key"]],
+          );
+        }
+
+        elseif ($display == 'textfield') {
+          $form['cr_grp_wrapper']['table'][$value["key"]]['display_options'] = array(
+            '#type' => 'textfield',
+            '#description' => t('A default field value (optional)'),
+            '#default_value' => $display_option_values[$value["key"]],
+          );
+        }
+
+        elseif ($display == 'date') {
+          $form['cr_grp_wrapper']['table'][$value["key"]]['display_options'] = array(
+            '#type' => 'textfield',
+            '#default_value' => isset($display_option_values[$value["key"]]) ? $display_option_values[$value["key"]] : 'Y-m-d',
+            '#disabled' => TRUE,
+            '#description' => t('Date format, default: Y-m-d'),
+          );
+        }
+
       }
+
     }
 
   }
@@ -335,14 +502,13 @@ function _cleverreach_edit_block_form_submit($form, &$form_state) {
   $fields = array();
 
   foreach ($form_state['values']['cr_grp_wrapper']['table'] as $key => $value) {
-
-    if ($value["select"] == 1) {
-      $fields[] = array(
-        'name' => $key,
-        'required' => $value["required"],
-      );
-    }
-
+    $fields[] = array(
+      'name' => $key,
+      'required' => $value["required"],
+      'display' => $value["display"],
+      'display_options' => $value["display_options"],
+      'active' => $value["select"],
+    );
   }
 
   $query = db_update('cleverreach_block_forms')
