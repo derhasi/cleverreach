@@ -91,12 +91,26 @@ function cleverreach_schema() {
 }
 
 /**
- * Implements hook_install().
+ * Implements hook_requirements().
  */
-function cleverreach_install() {
-  variable_set('cleverreach_api_key', '');
-  variable_set('cleverreach_wsdl_url', '');
-  variable_set('cleverreach_last_group_fetch', '');
+function cleverreach_requirements($phase) {
+  $requirements = array();
+
+  if ($phase == 'install') {
+
+    if (!class_exists('SOAPClient')) {
+      $t = get_t();
+      $requirements['soap_client_requirement'] = array(
+        'title' => $t('SOAP Client'),
+        'severity' => REQUIREMENT_ERROR,
+        'description' => $t('The PHP SOAPClient extension is not installed on your server. Please install it to use this module.'),
+      );
+    }
+
+  }
+
+  return $requirements;
+
 }
 
 /**

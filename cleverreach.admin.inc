@@ -45,7 +45,7 @@ function _cleverreach_admin_overview() {
     $fields = unserialize($result->fields);
 
     if (count($fields) > 0) {
-      foreach ($fields as $key => $value) {
+      foreach ($fields as $value) {
 
         if ($value["active"] == 1) {
           $attr .= $value["name"] . ", ";
@@ -94,7 +94,6 @@ function _cleverreach_add_block_form($form, &$form_state) {
   $form['#tree'] = TRUE;
   $options = array();
   $results = db_query('SELECT * FROM {cleverreach_groups} g');
-  $display_option_values = array();
 
   foreach ($results as $result) {
     $options[$result->crgid] = $result->name;
@@ -126,7 +125,7 @@ function _cleverreach_add_block_form($form, &$form_state) {
     if ($gid != NULL) {
       $attributes = db_query('SELECT grps.attributes FROM {cleverreach_groups} grps WHERE grps.crgid = :crgid', array(':crgid' => $gid))->fetchField();
 
-      foreach (unserialize($attributes) as $key => $value) {
+      foreach (unserialize($attributes) as $value) {
 
         if ($value["type"] == "text") {
           $display_select = array(
@@ -351,12 +350,12 @@ function _cleverreach_edit_block_form($form, &$form_state, $arg) {
     if ($gid != NULL) {
       $attributes = db_query('SELECT grps.attributes FROM {cleverreach_groups} grps WHERE grps.crgid = :crgid', array(':crgid' => $gid))->fetchField();
 
-      foreach (unserialize($attributes) as $key => $value) {
+      foreach (unserialize($attributes) as $value) {
         $display_options = '';
         $selected = 0;
         $required = 0;
 
-        foreach ($fields as $keyd => $valued) {
+        foreach ($fields as $valued) {
 
           if ($value["key"] == $valued["name"]) {
 
@@ -514,7 +513,7 @@ function _cleverreach_edit_block_form_submit($form, &$form_state) {
     );
   }
 
-  $query = db_update('cleverreach_block_forms')
+  db_update('cleverreach_block_forms')
     ->fields(array(
       'listid' => $form_state["values"]["cr_grp_wrapper"]["cr_block_grp"],
       'fields' => serialize($fields),
@@ -587,7 +586,7 @@ function _cleverreach_admin_settings() {
   );
   $form['api_details']['cleverreach_wsdl_url'] = array(
     '#type' => 'textfield',
-    '#default_value' => variable_get('cleverreach_wsdl_url', ''),
+    '#default_value' => variable_get('cleverreach_wsdl_url', 'http://api.cleverreach.com/soap/interface_v5.1.php?wsdl'),
     '#title' => t('CleverReach WSDL-URL'),
     '#description' => t('Enter the CleverReach WSDL-URL.'),
   );

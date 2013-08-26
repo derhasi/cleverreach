@@ -127,7 +127,7 @@ function _cleverreach_group_update() {
     $result = $api->groupGetList($settings["key"]);
 
     if ($result->status == 'SUCCESS') {
-      $drop = db_truncate('cleverreach_groups')->execute();
+      db_truncate('cleverreach_groups')->execute();
       $query = db_insert('cleverreach_groups')->fields(array(
         'crgid',
         'name',
@@ -138,11 +138,11 @@ function _cleverreach_group_update() {
         'last_changed',
       ));
 
-      foreach ($result->data as $key => $value) {
+      foreach ($result->data as $value) {
         $attr = array();
         $details = $api->groupGetDetails($settings["key"], $value->id);
 
-        foreach ($details->data->attributes as $key => $valued) {
+        foreach ($details->data->attributes as $valued) {
           array_push($attr, array(
             'key' => $valued->key,
             'type' => $valued->type,
@@ -257,7 +257,7 @@ function _cleverreach_build_block_form($form, &$form_state) {
 
   if (count($un_fields) > 0 && !empty($un_fields)) {
 
-    foreach ($un_fields as $key => $value) {
+    foreach ($un_fields as $value) {
 
       if ($value["active"] == 1) {
         $form['cr_form_wrapper'][$bid]['cr_block_' . $value["name"] . '_' . $bid] = _cleverreach_build_block_field($value);
@@ -320,7 +320,7 @@ function _cleverreach_group_assign($form, &$form_state) {
 
   if (count($un_fields) > 0) {
 
-    foreach ($un_fields as $key => $value) {
+    foreach ($un_fields as $value) {
 
       if ($value["active"] == 1) {
 
@@ -392,7 +392,7 @@ function _cleverreach_build_block_field($field_data) {
     $options = explode("\n", $field_data["display_options"]);
     $select_options = array();
 
-    foreach ($options as $key => $value) {
+    foreach ($options as $value) {
       $tmp = explode("|", $value);
 
       if (count($tmp) == 2) {
