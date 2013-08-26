@@ -178,21 +178,21 @@ function _cleverreach_add_block_form($form, &$form_state) {
           ),
         );
 
-        if (($form['cr_grp_wrapper']['table'][$value["key"]]['display']['#default_value'] == 'select') || isset($form_state['input']['cr_grp_wrapper']) && $form_state['input']['cr_grp_wrapper']['table'][$value["key"]]['display'] == 'select') {
+        if (($form['cr_grp_wrapper']['table'][$value["key"]]['display']['#default_value'] == 'select') || isset($form_state['values']['cr_grp_wrapper']) && $form_state['values']['cr_grp_wrapper']['table'][$value["key"]]['display'] == 'select') {
           $form['cr_grp_wrapper']['table'][$value["key"]]['display_options'] = array(
             '#type' => 'textarea',
             '#description' => t('Select options. One per line. key|value Example: men|Men'),
           );
         }
 
-        elseif (($form['cr_grp_wrapper']['table'][$value["key"]]['display']['#default_value'] == 'textfield') || isset($form_state['input']['cr_grp_wrapper']) && $form_state['input']['cr_grp_wrapper']['table'][$value["key"]]['display'] == 'textfield') {
+        elseif (($form['cr_grp_wrapper']['table'][$value["key"]]['display']['#default_value'] == 'textfield') || isset($form_state['values']['cr_grp_wrapper']) && $form_state['values']['cr_grp_wrapper']['table'][$value["key"]]['display'] == 'textfield') {
           $form['cr_grp_wrapper']['table'][$value["key"]]['display_options'] = array(
             '#type' => 'textfield',
             '#description' => t('A default field value (optional)'),
           );
         }
 
-        elseif (($form['cr_grp_wrapper']['table'][$value["key"]]['display']['#default_value'] == 'date')|| isset($form_state['input']['cr_grp_wrapper']) && $form_state['input']['cr_grp_wrapper']['table'][$value["key"]]['display'] == 'date') {
+        elseif (($form['cr_grp_wrapper']['table'][$value["key"]]['display']['#default_value'] == 'date')|| isset($form_state['values']['cr_grp_wrapper']) && $form_state['values']['cr_grp_wrapper']['table'][$value["key"]]['display'] == 'date') {
           $form['cr_grp_wrapper']['table'][$value["key"]]['display_options'] = array(
             '#type' => 'textfield',
             '#default_value' => 'Y-m-d',
@@ -442,7 +442,7 @@ function _cleverreach_edit_block_form($form, &$form_state, $arg) {
           ),
         );
 
-        $display = isset($form_state['input']['cr_grp_wrapper']['table'][$value["key"]]['display']) ? $form_state['input']['cr_grp_wrapper']['table'][$value["key"]]['display'] : $display_options;
+        $display = isset($form_state['values']['cr_grp_wrapper']['table'][$value["key"]]['display']) ? $form_state['values']['cr_grp_wrapper']['table'][$value["key"]]['display'] : $display_options;
 
         if (empty($display)) {
           $display = key($display_select);
