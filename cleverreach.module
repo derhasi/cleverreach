@@ -363,7 +363,7 @@ function _cleverreach_group_assign($form, &$form_state) {
   $result = $api->receiverAdd($settings["key"], $listid, $user);
 
   if ($result->status == "SUCCESS") {
-    drupal_set_message(t('Your submission was successfully.'));
+    drupal_set_message(t('Your submission was successful.'));
   }
   else {
     drupal_set_message(t('Error: Your submission failed.'), 'error');

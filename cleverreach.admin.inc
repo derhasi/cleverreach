@@ -503,25 +503,28 @@ function _cleverreach_edit_block_form_submit($form, &$form_state) {
   $bid = $form_state['storage']['bid'];
   $fields = array();
 
-  foreach ($form_state['values']['cr_grp_wrapper']['table'] as $key => $value) {
-    $fields[] = array(
-      'name' => $key,
-      'required' => $value["required"],
-      'display' => $value["display"],
-      'display_options' => $value["display_options"],
-      'active' => $value["select"],
-    );
-  }
+  if(!empty($form_state['values']['cr_grp_wrapper']['table'])){
+    foreach ($form_state['values']['cr_grp_wrapper']['table'] as $key => $value) {
+      $fields[] = array(
+        'name' => $key,
+        'required' => $value["required"],
+        'display' => $value["display"],
+        'display_options' => $value["display_options"],
+        'active' => $value["select"],
+      );
+    }
 
-  db_update('cleverreach_block_forms')
-    ->fields(array(
-      'listid' => $form_state["values"]["cr_grp_wrapper"]["cr_block_grp"],
-      'fields' => serialize($fields),
-      'active' => $form_state["values"]["cr_block_status"],
-    ))
-    ->condition("bid", $bid)
-    ->execute();
-  drupal_set_message(t('Block updated successfully.'));
+    db_update('cleverreach_block_forms')
+      ->fields(array(
+        'listid' => $form_state["values"]["cr_grp_wrapper"]["cr_block_grp"],
+        'fields' => serialize($fields),
+        'active' => $form_state["values"]["cr_block_status"],
+      ))
+      ->condition("bid", $bid)
+      ->execute();
+    drupal_set_message(t('Block updated successfully.'));
+  }
+  
   drupal_goto('admin/config/services/cleverreach');
 }
 
