@@ -72,30 +72,37 @@ function cleverreach_block_form($form, &$form_state, $block, $op = 'edit', $enti
       '#title' => t('Fields'),
       '#id' => 'cleverreach-fields',
       '#tree' => TRUE,
-    );
-
-    // Check if we've got some fields to configure.
-    $subform = _cleverreach_block_fields_subform($listid, $values);
-
-    if (empty($subform)) {
-      $form['fields']['#children'] = t('The group has no additional fields');
-    }
-    else {
-      // If we got fields, render the subform as a table with a custom theme.
-      $form['fields'] += $subform;
-
-      $form['fields']['#theme'] = 'cleverreach_tableform';
-      $form['fields']['#columns'] = array(
+      '#theme' => 'cleverreach_tableform',
+      '#columns' => array(
         'active' => t('Active'),
         'name' => t('Name'),
         'type' => t('Type'),
-        'var' => t('Variable'),
+        'label' => t('Label'),
         'required' => t('Required'),
         'display' => t('Display'),
         'display_options' => t('Display options'),
-      );
-      $form['fields']['#caption'] = t('Select fields.');
-    }
+      ),
+      '#caption' => t('Select fields'),
+    );
+
+    $form['fields']['email'] = array(
+      'name' => array(
+        '#type' => 'item',
+        '#markup' => 'email',
+      ),
+      'label' => array(
+        '#type' => 'textfield',
+        '#default_value' => isset($values['email']['label']) ? $values['email']['label'] : 'E-Mail:',
+        '#size' => 30,
+      ),
+      'type' => array(
+        '#type' => 'item',
+        '#markup' => 'email',
+      ),
+    );
+
+    // Add additional attribute based fields.
+    $form['fields'] += _cleverreach_block_fields_subform($listid, $values);
   }
 
   $form['actions'] = array('#type' => 'actions');
@@ -157,9 +164,12 @@ function _cleverreach_block_fields_subform($gid, $values) {
       '#type' => 'item',
       '#markup' => check_plain($attr->key),
     );
-    $subform['var'] = array(
-      '#type' => 'item',
-      '#markup' => check_plain($attr->variable),
+    $subform['label'] = array(
+      '#type' => 'textfield',
+      '#title' => t('Label'),
+      '#description' => t('Field label to display in the form presented to the user'),
+      '#default_value' => !empty($val['label']) ? $val['label'] : ucwords($attr->key) . ':',
+      '#size' => 30,
     );
     $subform['type'] = array(
       '#type' => 'item',

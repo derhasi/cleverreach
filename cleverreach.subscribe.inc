@@ -17,9 +17,9 @@ function cleverreach_subscribe_form($form, &$form_state, CleverReachBlock $block
     '#value' => $block->name,
   );
 
-  $form['mail'] = array(
+  $form['email'] = array(
     '#type' => 'textfield',
-    '#title' => t('E-Mail:'),
+    '#title' => isset($block->fields['email']['label']) ? t($block->fields['email']['label']) : t('E-Mail:'),
     '#required' => 1,
     '#size' => 25,
   );
@@ -45,8 +45,8 @@ function cleverreach_subscribe_form($form, &$form_state, CleverReachBlock $block
  * Implements hook_form_validate().
  */
 function cleverreach_subscribe_form_validate($form, &$form_state) {
-  if (!valid_email_address($form_state['values']['mail'])) {
-    form_set_error('mail', t('Please enter a valid email address.'));
+  if (!valid_email_address($form_state['values']['email'])) {
+    form_set_error('email', t('Please enter a valid email address.'));
   }
 }
 
@@ -84,7 +84,7 @@ function cleverreach_subscribe_form_submit($form, &$form_state) {
 
   if (count($subscribe_attributes)) {
     $params = array(
-      "email" => $form_state['values']['mail'],
+      "email" => $form_state['values']['email'],
       "registered" => time(),
       "activated" => time(),
       "source" => variable_get('site_name', 'CleverReach Drupal Module'),
@@ -93,7 +93,7 @@ function cleverreach_subscribe_form_submit($form, &$form_state) {
   }
   else {
     $params = array(
-      "email" => $form_state['values']['mail'],
+      "email" => $form_state['values']['email'],
       "registered" => time(),
       "activated" => time(),
       "source" => variable_get('site_name', 'CleverReach Drupal Module'),
@@ -119,7 +119,7 @@ function cleverreach_subscribe_form_submit($form, &$form_state) {
  */
 function _cleverreach_build_block_field($name, $field_data) {
   $field = array(
-    '#title' => ucfirst($name) . ":",
+    '#title' => isset($field_data['label']) ? $field_data['label'] : ucwords($name) . ":",
     '#required' => $field_data["required"],
   );
 
