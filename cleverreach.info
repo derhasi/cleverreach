@@ -2,3 +2,10 @@ name = CleverReach Module
 core = 7.x
 description = Helper module between drupal and the cleverreach api
 configure = admin/config/services/cleverreach/settings
+
+dependencies[] = entity
+
+files[] = src/CleverReachBlock.php
+files[] = src/CleverReachBlockUIController.php
+files[] = src/CleverReachGroup.php
+files[] = src/CleverReachGroupAttribute.php

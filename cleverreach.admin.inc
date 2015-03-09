@@ -1,572 +1,281 @@
 <?php
 /**
  * @file
- * This file contains admin functions.
+ * This file contains admin UI callbacks.
  */
 
 /**
- * Show admin overview page.
+ * Generates the profile type editing form.
+ *
+ * @todo: field weight / tabledrag
  */
-function _cleverreach_admin_overview() {
-  $group_row = array();
-  $results = db_query('SELECT * FROM {cleverreach_groups} g');
+function cleverreach_block_form($form, &$form_state, $block, $op = 'edit', $entity_type = NULL) {
 
-  foreach ($results as $result) {
-    $group_row[] = array(
-      $result->crgid,
-      $result->name,
-      $result->active_count,
-      $result->inactive_count,
-      date("Y-m-d H:i:s", $result->last_mailing),
-      date("Y-m-d H:i:s", $result->last_changed),
+  if ($op == 'clone') {
+    // Only label is provided for cloned entities.
+    $block->name = $entity_type . '_clone';
+  }
+
+  $form['label'] = array(
+    '#title' => t('Label'),
+    '#type' => 'textfield',
+    '#required' => TRUE,
+    '#default_value' => isset($block->label) ? $block->label : '',
+  );
+
+  // Machine-readable type name.
+  $form['name'] = array(
+    '#type' => 'machine_name',
+    '#required' => TRUE,
+    '#default_value' => isset($block->name) ? $block->name : '',
+    '#machine_name' => array(
+      'exists' => 'cleverreach_get_block',
+      'source' => array('label'),
+    ),
+    '#description' => t('A unique machine-readable name for this block. It must only contain lowercase letters, numbers, and underscores.'),
+  );
+
+  $form['active'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Activate Block'),
+    '#default_value' => $block->active,
+    '#description' => t('Check to make the block usable on the block admin page.'),
+  );
+
+  $form['listid'] = array(
+    '#type' => 'select',
+    '#options' => cleverreach_get_group_options(),
+    '#title' => t('Group'),
+    '#description' => t('Select the cleverreach group'),
+    '#default_value' => $block->listid,
+    '#required' => TRUE,
+    '#ajax' => array(
+      'callback' => '_cleverreach_block_form_ajax_fields',
+      'wrapper' => 'cleverreach-fields',
+      'method' => 'replace',
+      'effect' => 'fade',
+    ),
+  );
+
+  // Get the latest values from the form state as we have an ajaxified form.
+  $listid = isset($form_state['values']['listid']) ? $form_state['values']['listid'] : $block->listid;
+  $values = isset($form_state['values']['fields']) ? $form_state['values']['fields'] : $block->fields;
+
+  if (empty($listid)) {
+    $form['fields'] = array(
+      '#markup' => '<div id="cleverreach-fields"></div>',
+    );
+  }
+  else {
+    $form['fields'] = array(
+      '#type' => 'fieldset',
+      '#title' => t('Fields'),
+      '#id' => 'cleverreach-fields',
+      '#tree' => TRUE,
+    );
+
+    // Check if we've got some fields to configure.
+    $subform = _cleverreach_block_fields_subform($listid, $values);
+
+    if (empty($subform)) {
+      $form['fields']['#children'] = t('The group has no additional fields');
+    }
+    else {
+      // If we got fields, render the subform as a table with a custom theme.
+      $form['fields'] += $subform;
+
+      $form['fields']['#theme'] = 'cleverreach_tableform';
+      $form['fields']['#columns'] = array(
+        'active' => t('Active'),
+        'name' => t('Name'),
+        'type' => t('Type'),
+        'var' => t('Variable'),
+        'required' => t('Required'),
+        'display' => t('Display'),
+        'display_options' => t('Display options'),
+      );
+      $form['fields']['#caption'] = t('Select fields.');
+    }
+  }
+
+  $form['actions'] = array('#type' => 'actions');
+  $form['actions']['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Save block'),
+    '#weight' => 40,
+  );
+  return $form;
+}
+
+/**
+ * Form API submit callback for the type form.
+ */
+function cleverreach_block_form_submit(&$form, &$form_state) {
+  $block = entity_ui_form_submit_build_entity($form, $form_state);
+  // Save and go back.
+  $block->save();
+  $form_state['redirect'] = 'admin/config/services/cleverreach';
+}
+
+/**
+ * Ajax callback for the block form.
+ *
+ * @return mixed
+ */
+function _cleverreach_block_form_ajax_fields($form, &$form_state) {
+  return $form['fields'];
+}
+
+/**
+ * Provides subform for fields of a given cleverreach group.
+ *
+ * @param int $gid
+ *   CleverReach Group ID
+ * @param $values
+ *   Array of field values, either from the block object or the form state.
+ *
+ * @return array
+ *   Form array to implement in
+ */
+function _cleverreach_block_fields_subform($gid, $values) {
+  $subforms = array();
+  $group = cleverreach_get_single_group($gid);
+
+  foreach ($group->getAttributes() as $attr) {
+
+    $val = _cleverreach_block_form_get_field_values($attr, $values);
+
+    $subform['active'] = array(
+      '#type' => 'checkbox',
+      '#default_value' => $val['active'],
+    );
+    $subform['required'] = array(
+      '#type' => 'checkbox',
+      '#default_value' => $val['required'],
+    );
+    $subform['name'] = array(
+      '#type' => 'item',
+      '#markup' => check_plain($attr->key),
+    );
+    $subform['var'] = array(
+      '#type' => 'item',
+      '#markup' => check_plain($attr->variable),
+    );
+    $subform['type'] = array(
+      '#type' => 'item',
+      '#markup' => check_plain($attr->type),
+    );
+
+    $options = $attr->getDisplayTypes();
+    if (empty($val['display'])) {
+      // By default we chose the first option to be preselected.
+      $val['display'] = key($options);
+    }
+
+    $subform['display'] = array(
+      '#type' => 'select',
+      '#options' => $options,
+      '#default_value' => $val['display'],
+      '#ajax' => array(
+        'callback' => '_cleverreach_block_form_ajax_fields',
+        'wrapper' => 'cleverreach-fields',
+        'method' => 'replace',
+        'effect' => 'fade',
+      ),
+    );
+
+    switch ($val['display']) {
+      case 'select':
+        $subform['display_options'] = array(
+          '#type' => 'textarea',
+          '#description' => t('Select options. One per line. key|value Example: men|Men'),
+          '#default_value' => $val['display_options'],
+        );
+        break;
+
+      case 'textfield':
+        $subform['display_options'] = array(
+          '#type' => 'textfield',
+          '#description' => t('A default field value (optional)'),
+          '#default_value' => $val['display_options'],
+        );
+        break;
+
+      case 'date':
+        $subform['display_options'] = array(
+          '#type' => 'textfield',
+          '#default_value' => !empty($val['display_options']) ? $val['display_options'] : 'Y-m-d',
+          '#disabled' => TRUE,
+          '#description' => t('Date format, default: Y-m-d'),
+        );
+        break;
+    }
+
+    $subforms[$attr->key] = $subform;
+  }
+
+  return $subforms;
+}
+
+/**
+ * Helper to ge the right value for the given attribute.
+ *
+ * @param \CleverReachGroupAttribute $attr
+ * @param $values
+ *
+ * @return mixed
+ */
+function _cleverreach_block_form_get_field_values(\CleverReachGroupAttribute $attr, $values) {
+  if (isset($values[$attr->key])) {
+    $val = $values[$attr->key];
+  }
+  else {
+    $val = array();
+  }
+
+  return array_merge(array(
+    'active' => 0,
+    'required' => 0,
+    'display' => '',
+    'display_options' => '',
+  ), $values[$attr->key]);
+}
+
+/**
+ * Returns a renderable overview of the cached groups.
+ *
+ * @return array
+ *   Render array as group overview table.
+ */
+function cleverreach_groups_overview() {
+  $rows = array();
+  $groups = cleverreach_get_all_groups();
+
+  foreach ($groups as $group) {
+    $rows[] = array(
+      $group->id,
+      $group->name,
+      $group->count,
+      $group->inactive_count,
+      (!empty($group->last_mailing)) ? format_date($group->last_mailing) : t('No mailing yet'),
+      format_date($group->last_changed),
     );
   }
 
-  $group_rows = $group_row;
   $group_header = array(
-    t('CR GroupID'),
+    t('ID'),
     t('Name'),
     t('Active Count'),
     t('Inactive Count'),
     t('Last mailing'),
     t('Last changed'),
   );
-  $group_table = theme('table', array(
-    'header' => $group_header,
-    'rows' => $group_rows,
-  ));
-  $block_row = array();
-  $results = db_query('SELECT * FROM {cleverreach_block_forms} bf');
 
-  foreach ($results as $result) {
-    $attr = '';
-    $name = _cleverreach_get_group_name($result->listid);
-    $active = ($result->active == 1) ? t('Yes') : t('No');
-    $fields = unserialize($result->fields);
-
-    if (count($fields) > 0) {
-      foreach ($fields as $value) {
-
-        if ($value["active"] == 1) {
-          $attr .= $value["name"] . ", ";
-        }
-
-      }
-
-      $attr = substr($attr, 0, -2);
-    }
-
-    else {
-      $attr = '-';
-    }
-
-    $block_row[] = array(
-      $name,
-      $attr,
-      $active,
-      l(t('Edit'), 'admin/config/services/cleverreach/editblock/' . $result->bid)
-      . " | " .
-      l(t('Delete'), 'admin/config/services/cleverreach/delblock/' . $result->bid),
-    );
-  }
-
-  $block_rows = $block_row;
-  $block_header = array(
-    t('Group'),
-    t('Attributes'),
-    t('Active'),
-    t('Options'),
+  return array(
+    '#theme' => 'table',
+    '#rows' => $rows,
+    '#header' => $group_header,
   );
-  $block_table = theme('table', array(
-    'header' => $block_header,
-    'rows' => $block_rows,
-  ));
-  $output = theme_fieldset(array('element' => array('#title' => t('Blocks'), '#children' => $block_table)));
-  $output .= theme_fieldset(array('element' => array('#title' => t('Groups'), '#children' => $group_table)));
-  return $output;
-}
-
-/**
- * Implements hook_form().
- */
-function _cleverreach_add_block_form($form, &$form_state) {
-  $form = array();
-  $form['#tree'] = TRUE;
-  $options = array();
-  $results = db_query('SELECT * FROM {cleverreach_groups} g');
-
-  foreach ($results as $result) {
-    $options[$result->crgid] = $result->name;
-  }
-
-  $form['cr_grp_wrapper'] = array(
-    '#type' => 'fieldset',
-    '#theme' => 'addblock_theming',
-    '#prefix' => '<div id="cr-group-attribute-wrapper">',
-    '#suffix' => '</div>',
-  );
-  $form['cr_grp_wrapper']['cr_block_grp'] = array(
-    '#type' => 'select',
-    '#options' => $options,
-    '#title' => t('Select a group'),
-    '#description' => t('Select the cleverreach group'),
-    '#required' => TRUE,
-    '#ajax' => array(
-      'callback' => '_cleverreach_add_block_form_js',
-      'wrapper' => 'cr-group-attribute-wrapper',
-      'method' => 'replace',
-      'effect' => 'fade',
-    ),
-  );
-
-  if (isset($form_state['values']['cr_grp_wrapper']['cr_block_grp'])) {
-    $gid = is_numeric($form_state['values']['cr_grp_wrapper']['cr_block_grp']) ? $form_state['values']['cr_grp_wrapper']['cr_block_grp'] : NULL;
-
-    if ($gid != NULL) {
-      $attributes = db_query('SELECT grps.attributes FROM {cleverreach_groups} grps WHERE grps.crgid = :crgid', array(':crgid' => $gid))->fetchField();
-
-      foreach (unserialize($attributes) as $value) {
-
-        if ($value["type"] == "text") {
-          $display_select = array(
-            'textfield' => t('Textfield'),
-            'select' => t('Select box'),
-          );
-        }
-
-        elseif ($value["type"] == "number") {
-          $display_select = array(
-            'textfield' => t('Textfield'),
-          );
-        }
-
-        elseif ($value["type"] == "gender") {
-          $display_select = array(
-            'select' => t('Select box'),
-          );
-        }
-
-        elseif ($value["type"] == "date") {
-          $display_select = array(
-            'date' => t('Date select box'),
-          );
-        }
-
-        $form['cr_grp_wrapper']['table'][$value["key"]]['select'] = array(
-          '#type' => 'checkbox',
-        );
-        $form['cr_grp_wrapper']['table'][$value["key"]]['required'] = array(
-          '#type' => 'checkbox',
-        );
-        $form['cr_grp_wrapper']['table'][$value["key"]]['var'] = array(
-          '#type' => 'hidden',
-          '#value' => $value["variable"],
-        );
-        $form['cr_grp_wrapper']['table'][$value["key"]]['type'] = array(
-          '#type' => 'hidden',
-          '#value' => $value["type"],
-        );
-        $form['cr_grp_wrapper']['table'][$value["key"]]['display'] = array(
-          '#type' => 'select',
-          '#options' => $display_select,
-          '#default_value' => key($display_select),
-          '#ajax' => array(
-            'callback' => '_cleverreach_add_block_form_js',
-            'wrapper' => 'cr-group-attribute-wrapper',
-            'method' => 'replace',
-            'effect' => 'fade',
-          ),
-        );
-
-        if (($form['cr_grp_wrapper']['table'][$value["key"]]['display']['#default_value'] == 'select') || isset($form_state['values']['cr_grp_wrapper']) && $form_state['values']['cr_grp_wrapper']['table'][$value["key"]]['display'] == 'select') {
-          $form['cr_grp_wrapper']['table'][$value["key"]]['display_options'] = array(
-            '#type' => 'textarea',
-            '#description' => t('Select options. One per line. key|value Example: men|Men'),
-          );
-        }
-
-        elseif (($form['cr_grp_wrapper']['table'][$value["key"]]['display']['#default_value'] == 'textfield') || isset($form_state['values']['cr_grp_wrapper']) && $form_state['values']['cr_grp_wrapper']['table'][$value["key"]]['display'] == 'textfield') {
-          $form['cr_grp_wrapper']['table'][$value["key"]]['display_options'] = array(
-            '#type' => 'textfield',
-            '#description' => t('A default field value (optional)'),
-          );
-        }
-
-        elseif (($form['cr_grp_wrapper']['table'][$value["key"]]['display']['#default_value'] == 'date')|| isset($form_state['values']['cr_grp_wrapper']) && $form_state['values']['cr_grp_wrapper']['table'][$value["key"]]['display'] == 'date') {
-          $form['cr_grp_wrapper']['table'][$value["key"]]['display_options'] = array(
-            '#type' => 'textfield',
-            '#default_value' => 'Y-m-d',
-            '#disabled' => TRUE,
-            '#description' => t('Date format, default: Y-m-d'),
-          );
-        }
-
-      }
-
-    }
-
-  }
-
-  $form['cr_block_status'] = array(
-    '#type' => 'radios',
-    '#title' => t('Active Block'),
-    '#default_value' => 1,
-    '#description' => t('Should this block be active and usable on the system block page?'),
-    '#options' => array(0 => t('No'), 1 => t('Yes')),
-    '#weight' => 2,
-  );
-  $form['cr_submit'] = array(
-    '#type' => 'submit',
-    '#value' => t('Save'),
-    '#weight' => 3,
-    '#submit' => array('_cleverreach_add_block_form_submit'),
-  );
-  return $form;
-}
-
-/**
- * Theming function for addblock table with multiple checkboxes.
- */
-function theme_addblock_theming($variables) {
-  $output = '';
-  $output .= drupal_render($variables['element']['cr_block_grp']);
-
-  if (isset($variables['element']['table'])) {
-    $rows = array();
-    $header = array(
-      '',
-      t('Name'),
-      t('Type'),
-      t('Variable'),
-      t('Required'),
-      t('Display'),
-    );
-
-    foreach ($variables['element']['table'] as $key => $value) {
-
-      if (substr($key, 0, 1) != '#' && is_array($value)) {
-        $rows[] = array(
-          drupal_render($value["select"]),
-          $key,
-          $value["type"]["#value"],
-          $value["var"]["#value"],
-          drupal_render($value["required"]),
-          drupal_render($value["display"]) . drupal_render($value["display_options"]),
-        );
-      }
-
-    }
-
-    $output .= theme('table', array(
-      'header' => $header,
-      'rows' => $rows,
-      'caption' => t('Select Fields'),
-    ));
-  }
-
-  return $output;
-}
-
-/**
- * Implements hook_form_submit().
- */
-function _cleverreach_add_block_form_submit($form, &$form_state) {
-  $fields = array();
-
-  foreach ($form_state['values']['cr_grp_wrapper']['table'] as $key => $value) {
-    $fields[] = array(
-      'name' => $key,
-      'required' => $value["required"],
-      'display' => $value["display"],
-      'display_options' => $value["display_options"],
-      'active' => $value["select"],
-    );
-  }
-
-  $query = db_insert('cleverreach_block_forms')->fields(array(
-    'listid',
-    'fields',
-    'active',
-  ));
-  $query->values(array(
-    $form_state["values"]["cr_grp_wrapper"]["cr_block_grp"],
-    serialize($fields),
-    $form_state["values"]["cr_block_status"],
-  ));
-  $query->execute();
-  drupal_set_message(t('Block added successfully.'));
-  drupal_goto('admin/config/services/cleverreach');
-}
-
-/**
- * AJAX Callback function.
- */
-function _cleverreach_add_block_form_js($form, &$form_state) {
-  return $form['cr_grp_wrapper'];
-}
-
-/**
- * Implements hook_form().
- */
-function _cleverreach_edit_block_form($form, &$form_state, $arg) {
-  $bid = (is_numeric($arg) && isset($arg)) ? $arg : 0;
-  $form_state['storage']['bid'] = $bid;
-  $data = db_query('SELECT * FROM {cleverreach_block_forms} bf WHERE bf.bid = :bid', array(':bid' => $bid))->fetchAssoc();
-  $form = array();
-  $form['#tree'] = TRUE;
-  $options = array();
-  $results = db_query('SELECT * FROM {cleverreach_groups} g');
-  $fields = unserialize($data["fields"]);
-  $display_option_values = array();
-
-  foreach ($results as $result) {
-    $options[$result->crgid] = $result->name;
-  }
-
-  $form['cr_grp_wrapper'] = array(
-    '#type' => 'fieldset',
-    '#theme' => 'addblock_theming',
-    '#prefix' => '<div id="cr-group-attribute-wrapper">',
-    '#suffix' => '</div>',
-  );
-  $form['cr_grp_wrapper']['cr_block_grp'] = array(
-    '#type' => 'select',
-    '#options' => $options,
-    '#title' => t('Select a group'),
-    '#description' => t('Select the cleverreach group'),
-    '#default_value' => $data["listid"],
-    '#required' => TRUE,
-    '#ajax' => array(
-      'callback' => '_cleverreach_add_block_form_js',
-      'wrapper' => 'cr-group-attribute-wrapper',
-      'method' => 'replace',
-      'effect' => 'fade',
-    ),
-  );
-
-  if (isset($form_state['values']['cr_grp_wrapper']['cr_block_grp']) || isset($data["listid"])) {
-    $gid = (isset($form_state['values']['cr_grp_wrapper']['cr_block_grp']) && is_numeric($form_state['values']['cr_grp_wrapper']['cr_block_grp'])) ? $form_state['values']['cr_grp_wrapper']['cr_block_grp'] : $data["listid"];
-
-    if ($gid != NULL) {
-      $attributes = db_query('SELECT grps.attributes FROM {cleverreach_groups} grps WHERE grps.crgid = :crgid', array(':crgid' => $gid))->fetchField();
-
-      foreach (unserialize($attributes) as $value) {
-        $display_options = '';
-        $selected = 0;
-        $required = 0;
-
-        foreach ($fields as $valued) {
-
-          if ($value["key"] == $valued["name"]) {
-
-            if ($valued["active"] == 1) {
-              $selected = 1;
-            }
-
-            if ($valued["required"] == 1) {
-              $required = 1;
-            }
-
-            if ($valued["display"] == 'select') {
-              $display_options = 'select';
-            }
-
-            elseif ($valued["display"] == 'textfield') {
-              $display_options = 'textfield';
-            }
-
-            elseif ($valued["display"] == 'date') {
-              $display_options = 'date';
-            }
-
-            else {
-              $display_options = 'textfield';
-            }
-
-          }
-
-          $display_option_values[$valued["name"]] = $valued["display_options"];
-
-        }
-
-        if ($value["type"] == "text") {
-          $display_select = array(
-            'textfield' => t('Textfield'),
-            'select' => t('Select box'),
-          );
-        }
-
-        elseif ($value["type"] == "number") {
-          $display_select = array(
-            'textfield' => t('Textfield'),
-          );
-        }
-
-        elseif ($value["type"] == "gender") {
-          $display_select = array(
-            'select' => t('Select box'),
-          );
-        }
-
-        elseif ($value["type"] == "date") {
-          $display_select = array(
-            'date' => t('Date select box'),
-          );
-        }
-
-        $form['cr_grp_wrapper']['table'][$value["key"]]['select'] = array(
-          '#type' => 'checkbox',
-          '#default_value' => $selected,
-        );
-        $form['cr_grp_wrapper']['table'][$value["key"]]['required'] = array(
-          '#type' => 'checkbox',
-          '#default_value' => $required,
-        );
-        $form['cr_grp_wrapper']['table'][$value["key"]]['var'] = array(
-          '#type' => 'hidden',
-          '#value' => $value["variable"],
-        );
-        $form['cr_grp_wrapper']['table'][$value["key"]]['type'] = array(
-          '#type' => 'hidden',
-          '#value' => $value["type"],
-        );
-        $form['cr_grp_wrapper']['table'][$value["key"]]['display'] = array(
-          '#type' => 'select',
-          '#options' => $display_select,
-          '#default_value' => (isset($display_options) && !empty($display_options)) ? $display_options : key($display_select),
-          '#ajax' => array(
-            'callback' => '_cleverreach_add_block_form_js',
-            'wrapper' => 'cr-group-attribute-wrapper',
-            'method' => 'replace',
-            'effect' => 'fade',
-          ),
-        );
-
-        $display = isset($form_state['values']['cr_grp_wrapper']['table'][$value["key"]]['display']) ? $form_state['values']['cr_grp_wrapper']['table'][$value["key"]]['display'] : $display_options;
-
-        if (empty($display)) {
-          $display = key($display_select);
-        }
-
-        if ($display == 'select') {
-          $form['cr_grp_wrapper']['table'][$value["key"]]['display_options'] = array(
-            '#type' => 'textarea',
-            '#description' => t('Select options. One per line. key|value Example: men|Men'),
-            '#default_value' => isset($display_option_values[$value["key"]]) ? $display_option_values[$value["key"]] : '',
-          );
-        }
-
-        elseif ($display == 'textfield') {
-          $form['cr_grp_wrapper']['table'][$value["key"]]['display_options'] = array(
-            '#type' => 'textfield',
-            '#description' => t('A default field value (optional)'),
-            '#default_value' => isset($display_option_values[$value["key"]]) ? $display_option_values[$value["key"]] : '',
-          );
-        }
-
-        elseif ($display == 'date') {
-          $form['cr_grp_wrapper']['table'][$value["key"]]['display_options'] = array(
-            '#type' => 'textfield',
-            '#default_value' => isset($display_option_values[$value["key"]]) ? $display_option_values[$value["key"]] : 'Y-m-d',
-            '#disabled' => TRUE,
-            '#description' => t('Date format, default: Y-m-d'),
-          );
-        }
-
-      }
-
-    }
-
-  }
-
-  $form['cr_block_status'] = array(
-    '#type' => 'radios',
-    '#title' => t('Active Block'),
-    '#default_value' => $data["active"],
-    '#description' => t('Should this block be active and usable on the system block page?'),
-    '#options' => array(0 => t('No'), 1 => t('Yes')),
-    '#weight' => 2,
-  );
-  $form['cr_submit'] = array(
-    '#type' => 'submit',
-    '#value' => t('Save'),
-    '#weight' => 3,
-    '#submit' => array('_cleverreach_edit_block_form_submit'),
-  );
-  return $form;
-}
-
-/**
- * Implements hook_form_submit().
- */
-function _cleverreach_edit_block_form_submit($form, &$form_state) {
-  $bid = $form_state['storage']['bid'];
-  $fields = array();
-
-  if(!empty($form_state['values']['cr_grp_wrapper']['table'])){
-    foreach ($form_state['values']['cr_grp_wrapper']['table'] as $key => $value) {
-      $fields[] = array(
-        'name' => $key,
-        'required' => $value["required"],
-        'display' => $value["display"],
-        'display_options' => $value["display_options"],
-        'active' => $value["select"],
-      );
-    }
-
-    db_update('cleverreach_block_forms')
-      ->fields(array(
-        'listid' => $form_state["values"]["cr_grp_wrapper"]["cr_block_grp"],
-        'fields' => serialize($fields),
-        'active' => $form_state["values"]["cr_block_status"],
-      ))
-      ->condition("bid", $bid)
-      ->execute();
-    drupal_set_message(t('Block updated successfully.'));
-  }
-  
-  drupal_goto('admin/config/services/cleverreach');
-}
-
-/**
- * Implements hook_form().
- */
-function _cleverreach_del_block_form($form, &$form_state, $arg) {
-  $form = array();
-  $arg = isset($arg) ? $arg : 0;
-  $form['bid'] = array(
-    '#type' => 'hidden',
-    '#value' => $arg,
-  );
-  return confirm_form($form, t('Are you sure you want to delete this block?'), 'admin/config/services/cleverreach', t('This action cannot be undone.'), t('Delete'));
-}
-
-/**
- * Implements hook_form_submit().
- */
-function _cleverreach_del_block_form_submit($form, &$form_state) {
-
-  if ($form_state['values']['bid'] != 0) {
-    $delta = 'cr_block_' . $form_state['values']['bid'];
-    db_delete('cleverreach_block_forms')
-      ->condition('bid', $form_state['values']['bid'], '=')
-      ->execute();
-    db_delete('block')
-      ->condition('module', 'cleverreach')
-      ->condition('delta', $delta)
-      ->execute();
-    db_delete('block_role')
-      ->condition('module', 'cleverreach')
-      ->condition('delta', $delta)
-      ->execute();
-    cache_clear_all();
-    drupal_set_message(t('Block deleted successfully.'));
-    drupal_goto('admin/config/services/cleverreach');
-  }
-  else {
-    drupal_goto('admin/config/services/cleverreach');
-  }
-
 }
 
 /**
@@ -600,17 +309,50 @@ function _cleverreach_admin_settings() {
     '#collapsible' => TRUE,
     '#collapsed' => FALSE,
   );
-  $timestamp = variable_get('cleverreach_last_group_fetch', '');
-  $last_update = !empty($timestamp) ? date("Y-m-d H:i:s", $timestamp) : t('never');
-  $form['grp_details']['last_update'] = array(
-    '#markup' => t('Last group update: @date', array('@date' => $last_update)) . "<br />",
-  );
+
+  // If we got a cache, show the date it was last updated.
+  $group_cache = cache_get(CLEVERREACH_GROUPS_CACHE_ID);
+  $date = ($group_cache && $group_cache->created) ? format_date($group_cache->created) : t('never');
+  $form['grp_details']['#description'] = t('Last update: @date', array(
+    '@date' => $date,
+  ));
+
   $form['grp_details']['update_button'] = array(
     '#type' => 'button',
     '#value' => t('Fetch groups now'),
     '#limit_validation_errors' => array(),
     '#executes_submit_callback' => TRUE,
-    '#submit' => array('_cleverreach_group_update'),
+    '#submit' => array('_cleverreach_admin_settings_submit_fetch_groups'),
   );
   return system_settings_form($form);
+}
+
+/**
+ * Validation callback for the admin settings form.
+ */
+function _cleverreach_admin_settings_validate($form, &$form_state) {
+
+  // Validate connection.
+  $api = new SoapClient($form_state['values']['cleverreach_wsdl_url']);
+  $response = $api->clientGetDetails($form_state['values']['cleverreach_api_key']);
+  if ($response->status == 'ERROR') {
+    form_set_error('cleverreach_api_key', t('Could not connect to the Server: %message', array(
+      '%message' => $response->message,
+    )));
+  }
+}
+
+/**
+ * Submission callback for updating group cache.
+ */
+function _cleverreach_admin_settings_submit_fetch_groups($form, &$form_state) {
+
+  $result = _cleverreach_update_group_cache();
+
+  if (empty($result)) {
+    drupal_set_message(t('No groups were synced. Make sure you already have created customer groups on cleverreach.com.'), 'warning');
+  }
+  else {
+    drupal_set_message(t('Groups succesfully synced.'));
+  }
 }

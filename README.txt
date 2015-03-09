@@ -8,7 +8,7 @@ INSTALL
 
 ADD NEW BLOCK
 --------------
-1. Go to admin/config/services/cleverreach/addblock 
+1. Go to admin/config/services/cleverreach/add
    and add a new submission block.
 
 Options:

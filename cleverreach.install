@@ -18,6 +18,18 @@ function cleverreach_schema() {
         'unsigned' => TRUE,
         'not null' => TRUE,
       ),
+      'name' => array(
+        'description' => 'The machine-readable name of this form.',
+        'type' => 'varchar',
+        'length' => 32,
+        'not null' => TRUE,
+      ),
+      'label' => array(
+        'description' => 'The block label',
+        'type' => 'varchar',
+        'length' => 255,
+        'default' => '',
+      ),
       'listid' => array(
         'description' => 'the group id',
         'type' => 'int',
@@ -25,6 +37,7 @@ function cleverreach_schema() {
       'fields' => array(
         'description' => 'field data array',
         'type' => 'text',
+        'serialize' => TRUE,
       ),
       'active' => array(
         'description' => 'is the block active',
@@ -32,60 +45,11 @@ function cleverreach_schema() {
         'not null' => TRUE,
         'default' => 1,
       ),
-    ),
+    ) + entity_exportable_schema_fields(),
     'primary key' => array('bid'),
-  );
-  $schema['cleverreach_groups'] = array(
-    'description' => 'cleverreach sync groups',
-    'fields' => array(
-      'gid' => array(
-        'description' => 'The identifier',
-        'type' => 'serial',
-        'unsigned' => TRUE,
-        'not null' => TRUE,
-      ),
-      'crgid' => array(
-        'description' => 'the cleverreach group id',
-        'type' => 'int',
-        'not null' => TRUE,
-        'default' => 0,
-      ),
-      'name' => array(
-        'description' => 'the group name',
-        'type' => 'varchar',
-        'length' => 255,
-        'default' => '',
-      ),
-      'attributes' => array(
-        'description' => 'group attributes',
-        'type' => 'text',
-      ),
-      'active_count' => array(
-        'description' => 'active counts',
-        'type' => 'int',
-        'size' => 'big',
-        'default' => 0,
-      ),
-      'inactive_count' => array(
-        'description' => 'inactive counts',
-        'type' => 'int',
-        'size' => 'big',
-        'default' => 0,
-      ),
-      'last_mailing' => array(
-        'description' => 'timestamp last mailing',
-        'type' => 'int',
-        'not null' => TRUE,
-        'default' => 0,
-      ),
-      'last_changed' => array(
-        'description' => 'timestamp last changed',
-        'type' => 'int',
-        'not null' => TRUE,
-        'default' => 0,
-      ),
+    'unique keys' => array(
+      'name' => array('name'),
     ),
-    'primary key' => array('gid'),
   );
   return $schema;
 }
@@ -97,7 +61,6 @@ function cleverreach_requirements($phase) {
   $requirements = array();
 
   if ($phase == 'install') {
-
     if (!class_exists('SOAPClient')) {
       $t = get_t();
       $requirements['soap_client_requirement'] = array(
@@ -106,11 +69,127 @@ function cleverreach_requirements($phase) {
         'description' => $t('The PHP SOAPClient extension is not installed on your server. Please install it to use this module.'),
       );
     }
-
   }
 
   return $requirements;
+}
 
+/**
+ * Variable cleverreach_last_group_fetch not used anymore.
+ */
+function cleverreach_update_7101() {
+  variable_del('cleverreach_last_group_fetch');
+}
+
+/**
+ * Table {cleverreach_groups} not used anymore.
+ */
+function cleverreach_update_7102() {
+  db_drop_table('cleverreach_groups');
+
+  // As the new classes may not be regisstered already, we should require them
+  // manually.
+  require_once __DIR__ . '/src/CleverReachGroup.php';
+  require_once __DIR__ . '/src/CleverReachGroupAttribute.php';
+
+  // Try to initially build the cache with the given data.
+  _cleverreach_update_group_cache();
+}
+
+/**
+ * Add and update fields for cleverreach_block_forms.
+ */
+function cleverreach_update_7103() {
+
+  // Added fields.
+  db_add_field('cleverreach_block_forms', 'name', array(
+    'description' => 'The machine-readable name of this form.',
+    'type' => 'varchar',
+    'length' => 32,
+    'not null' => TRUE,
+    'default' => '',
+  ));
+  db_add_field('cleverreach_block_forms', 'label', array(
+    'description' => 'The block label',
+    'type' => 'varchar',
+    'length' => 255,
+    'default' => '',
+  ));
+  foreach (entity_exportable_schema_fields() as $field => $spec) {
+    db_add_field('cleverreach_block_forms', $field, $spec);
+  }
+
+  // Definition of 'fields' is added with 'serialize'.
+  db_change_field('cleverreach_block_forms', 'fields', 'fields', array(
+    'description' => 'field data array',
+    'type' => 'text',
+    'serialize' => TRUE,
+  ));
+}
+
+/**
+ * Add values for new block fields and update fields structure.
+ */
+function cleverreach_update_7104() {
+  // As we deal with groups, we should make sure, the classes are loaded.
+  require_once __DIR__ . '/src/CleverReachGroup.php';
+  require_once __DIR__ . '/src/CleverReachGroupAttribute.php';
+
+  $lines = db_query('SELECT * FROM {cleverreach_block_forms}');
+
+  foreach ($lines as $line) {
+    // Support legacy block deltas.
+    $block_name = 'cr_block_' . $line->bid;
+
+    $block_label = '';
+    // For the new label, we use the group name.
+    if ($line->listid) {
+      $group = cleverreach_get_single_group($line->listid);
+      $block_label = $group->name;
+    }
+
+    // For the new field structure, we use the name as key of the definition
+    // array.
+    $fields = unserialize($line->fields);
+    $new_fields = array();
+    foreach ($fields as $field) {
+      $name = $field['name'];
+      unset($field['name']);
+      $new_fields[$name] = $field;
+    }
+
+    db_update('cleverreach_block_forms')
+      ->fields(array(
+        'name' => $block_name,
+        'label' => $block_label,
+        'fields' => serialize($new_fields),
+      ))
+      ->condition('bid', $line->bid)
+      ->execute();
+  }
+
+}
+
+/**
+ * Set name as unique column.
+ */
+function cleverreach_update_7105() {
+
+  // For the update process we needed a default value. But name should be
+  // unique, so no default should be set.
+  db_change_field('cleverreach_block_forms', 'name', 'name', array(
+    'description' => 'The machine-readable name of this form.',
+    'type' => 'varchar',
+    'length' => 32,
+    'not null' => TRUE,
+  ));
+
+  db_add_unique_key('cleverreach_block_forms', 'name', array('name'));
+  
+  // As we updated the base table of our entity, we need to update the cache
+  // once, so all modules have up to date information.
+  drupal_get_schema('cleverreach_block_forms', TRUE);
+  entity_info_cache_clear();
 }
 
 /**
@@ -119,5 +198,4 @@ function cleverreach_requirements($phase) {
 function cleverreach_uninstall() {
   variable_del('cleverreach_api_key');
   variable_del('cleverreach_wsdl_url');
-  variable_del('cleverreach_last_group_fetch');
 }
