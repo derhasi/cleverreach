@@ -51,7 +51,7 @@ class CleverReachGroup {
   public $attributes = array();
 
   /**
-   * @var array
+   * @var CleverReachGroupAttribute[]
    */
   public $globalAttributes = array();
 
@@ -69,8 +69,15 @@ class CleverReachGroup {
       if ($key == 'attributes') {
         $this->attributes = array();
         foreach ($val as $attribute) {
-          $attr = new CleverReachGroupAttribute($attribute);
-          $this->{$key}[$attr->key] = $attr;
+          $attr = new CleverReachGroupAttribute($attribute, FALSE);
+          $this->attributes[$attr->key] = $attr;
+        }
+      }
+      elseif ($key == 'globalAttributes') {
+        $this->globalAttributes = array();
+        foreach ($val as $attribute) {
+          $attr = new CleverReachGroupAttribute($attribute, TRUE);
+          $this->globalAttributes[$attr->key] = $attr;
         }
       }
       else {
@@ -84,8 +91,8 @@ class CleverReachGroup {
    *
    * @return CleverReachGroupAttribute[]
    */
-  public function getAttributes() {
-    return $this->attributes;
+  public function getAllAttributes() {
+    return array_merge($this->globalAttributes, $this->attributes);
   }
 
 }

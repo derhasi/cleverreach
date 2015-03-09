@@ -6,13 +6,20 @@
 
 class CleverReachGroupAttribute {
 
+  public $is_global;
+
   public $key;
 
   public $type;
 
   public $variable;
 
-  public function __construct($data) {
+  /**
+   * Constructor
+   * @param array $data
+   * @param bool $is_global
+   */
+  public function __construct($data, $is_global = FALSE) {
     $data = (array) $data;
     $this->key = $data['key'];
     $this->type = $data['type'];

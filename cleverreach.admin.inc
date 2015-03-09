@@ -154,7 +154,7 @@ function _cleverreach_block_fields_subform($gid, $values) {
   $subforms = array();
   $group = cleverreach_get_single_group($gid);
 
-  foreach ($group->getAttributes() as $attr) {
+  foreach ($group->getAllAttributes() as $attr) {
 
     $val = _cleverreach_block_form_get_field_values($attr, $values);
 
