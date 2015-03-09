@@ -349,18 +349,56 @@ function theme_cleverreach_tableform($variables) {
   $rows = array();
 
   foreach (element_children($element) as $child_key) {
+    $row = array();
 
-    foreach ($columns as $column => $column_name) {
-      $row[$column] = drupal_render($element[$child_key][$column]);
+    // Add additional column for tabledrag.
+    if (isset($columns['weight'])) {
+      $row[] = array('class' => array('entry-cross'));
     }
 
-    $rows[] = $row;
+    foreach ($columns as $column => $column_name) {
+      $row[$column] = array(
+        'data' => isset($element[$child_key][$column]) ? $element[$child_key][$column] : '',
+      );
+    }
+
+    $rows[] = array(
+      'data' => $row,
+      'class' => array('draggable'),
+    );
+  }
+
+  $table_id = drupal_html_id('cleverreach_tableform');
+
+  if (isset($columns['weight'])) {
+    // For initial rendering we need to sort the rows manually.
+    usort($rows, '_cleverreach_sort_tabledrag');
+
+    // Add additional header for tabledrag.
+    array_unshift($element['#columns'], '');
+    // ... and the JS for tabledrag.
+    drupal_add_tabledrag($table_id, 'order', 'sibling', 'draggable-weight');
   }
 
   return theme('table', array(
     'header' => array_values($element['#columns']),
     'rows' => $rows,
     'caption' => $element['#caption'],
+    'attributes' => array('id' => $table_id),
   ));
+}
 
+/**
+ * Sort callback for tabledrag rows.
+ */
+function _cleverreach_sort_tabledrag($a, $b) {
+  if (!isset($a['data']['weight']['data']['#default_value'])) {
+    return -1;
+  }
+  elseif (!isset($b['data']['weight']['data']['#default_value'])) {
+    return +1;
+  }
+  else {
+    return $a['data']['weight']['data']['#default_value'] > $b['data']['weight']['data']['#default_value'];
+  }
 }

@@ -17,15 +17,17 @@ function cleverreach_subscribe_form($form, &$form_state, CleverReachBlock $block
     '#value' => $block->name,
   );
 
-  $form['email'] = array(
+  $form['fields'] = array(
+    '#tree' => TRUE,
+  );
+
+  $form['fields']['email'] = array(
     '#type' => 'textfield',
     '#title' => isset($block->fields['email']['label']) ? t($block->fields['email']['label']) : t('E-Mail:'),
     '#required' => 1,
     '#size' => 25,
-  );
-
-  $form['fields'] = array(
-    '#tree' => TRUE,
+    '#weight' => isset($block->fields['email']['weight']) ? t($block->fields['email']['weight']) : 0,
+    '#parents' => array('email'),
   );
 
   foreach ($block->fields as $field_name => $field) {
@@ -37,6 +39,7 @@ function cleverreach_subscribe_form($form, &$form_state, CleverReachBlock $block
   $form['submit'] = array(
     '#type' => 'submit',
     '#value' => t('subscribe'),
+    '#weight' => 100,
   );
   return $form;
 }
@@ -121,6 +124,7 @@ function _cleverreach_build_block_field($name, $field_data) {
   $field = array(
     '#title' => isset($field_data['label']) ? $field_data['label'] : ucwords($name) . ":",
     '#required' => $field_data["required"],
+    '#weight' => isset($field_data['weight']) ? $field_data['weight'] : 0,
   );
 
   if ($field_data["display"] == "textfield") {

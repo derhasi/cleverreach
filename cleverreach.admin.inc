@@ -81,6 +81,7 @@ function cleverreach_block_form($form, &$form_state, $block, $op = 'edit', $enti
         'required' => t('Required'),
         'display' => t('Display'),
         'display_options' => t('Display options'),
+        'weight' => t('Weight'),
       ),
       '#caption' => t('Select fields'),
     );
@@ -98,6 +99,11 @@ function cleverreach_block_form($form, &$form_state, $block, $op = 'edit', $enti
       'type' => array(
         '#type' => 'item',
         '#markup' => 'email',
+      ),
+      'weight' => array(
+        '#type' => 'weight',
+        '#default_value' => isset($values['email']['weight']) ? $values['email']['weight'] : 0,
+        '#attributes' => array('class' => array('draggable-weight')),
       ),
     );
 
@@ -221,6 +227,12 @@ function _cleverreach_block_fields_subform($gid, $values) {
         break;
     }
 
+    $subform['weight'] = array(
+      '#type' => 'weight',
+      '#default_value' => isset($val['weight']) ? $val['weight'] : 0,
+      '#attributes' => array('class' => array('draggable-weight')),
+    );
+
     $subforms[$attr->key] = $subform;
   }
 
@@ -248,6 +260,7 @@ function _cleverreach_block_form_get_field_values(\CleverReachGroupAttribute $at
     'required' => 0,
     'display' => '',
     'display_options' => '',
+    'weight' => 0,
   ), $values[$attr->key]);
 }
 
