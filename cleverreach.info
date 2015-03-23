@@ -9,3 +9,4 @@ files[] = src/CleverReachBlock.php
 files[] = src/CleverReachBlockUIController.php
 files[] = src/CleverReachGroup.php
 files[] = src/CleverReachGroupAttribute.php
+files[] = src/CleverReachForm.php
