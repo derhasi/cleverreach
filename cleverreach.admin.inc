@@ -138,6 +138,17 @@ function cleverreach_block_form($form, &$form_state, $block, $op = 'edit', $enti
 }
 
 /**
+ * Form API validate callback for the block form.
+ */
+function cleverreach_block_form_validate(&$form, &$form_state) {
+  if ($form_state['values']['send_activation_mail']
+    && empty($form_state['values']['formid'])) {
+    form_set_error('formid', t('Currently activation mails can only be send via
+      a pre-configured CleverReach form. Therefore you must select a form.'));
+  }
+}
+
+/**
  * Form API submit callback for the type form.
  */
 function cleverreach_block_form_submit(&$form, &$form_state) {
