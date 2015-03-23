@@ -45,6 +45,16 @@ function cleverreach_schema() {
         'not null' => TRUE,
         'default' => 1,
       ),
+      'send_activation_mail' => array(
+        'description' => 'Shall an activation mail be sent on subscription?',
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 1,
+      ),
+      'formid' => array(
+        'description' => 'the aossciated selected form id',
+        'type' => 'int',
+      ),
     ) + entity_exportable_schema_fields(),
     'primary key' => array('bid'),
     'unique keys' => array(
@@ -190,6 +200,24 @@ function cleverreach_update_7105() {
   // once, so all modules have up to date information.
   drupal_get_schema('cleverreach_block_forms', TRUE);
   entity_info_cache_clear();
+}
+
+/**
+ * Add column for send_activation_mail and formid.
+ */
+function cleverreach_update_7106() {
+
+  db_add_field('cleverreach_block_forms', 'send_activation_mail', array(
+    'description' => 'Shall an activation mail be sent on subscription?',
+    'type' => 'int',
+    'not null' => TRUE,
+    'default' => 0,
+  ));
+
+  db_add_field('cleverreach_block_forms', 'formid', array(
+    'description' => 'the aossciated selected form id',
+    'type' => 'int',
+  ));
 }
 
 /**
