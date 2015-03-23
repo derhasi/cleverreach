@@ -84,32 +84,43 @@ function cleverreach_subscribe_form_submit($form, &$form_state) {
     }
   }
 
-
-  if (count($subscribe_attributes)) {
-    $params = array(
-      "email" => $form_state['values']['email'],
-      "registered" => time(),
-      "activated" => time(),
-      "source" => variable_get('site_name', 'CleverReach Drupal Module'),
-      "attributes" => $subscribe_attributes,
-    );
-  }
-  else {
-    $params = array(
-      "email" => $form_state['values']['email'],
-      "registered" => time(),
-      "activated" => time(),
-      "source" => variable_get('site_name', 'CleverReach Drupal Module'),
-      "attributes" => $subscribe_attributes,
-    );
-  }
+  $params = array(
+    "email" => $form_state['values']['email'],
+    "registered" => time(),
+    "activated" => ($block->send_activation_mail) ? 0 : time(),
+    "source" => variable_get('site_name', 'CleverReach Drupal Module'),
+    "attributes" => $subscribe_attributes,
+  );
 
   $settings = _cleverreach_get_settings();
   $api = new SoapClient($settings["url"]);
   $result = $api->receiverAdd($settings["key"], $block->listid, $params);
 
   if ($result->status == "SUCCESS") {
-    drupal_set_message(t('Your submission was successful.'));
+
+    // Show a simple message if no activation mail shall be sent.
+    if (!$block->send_activation_mail) {
+      drupal_set_message(t('Your submission was successful.'));
+    }
+    // Otherwise we prepare an activation mail with relevant data for
+    // cleverreach.
+    else {
+      $iodata = array(
+        'user_ip' => ip_address(),
+        'user_agent' => isset($_SERVER['HTTP_USER_AGENT']) ? $_SERVER['HTTP_USER_AGENT'] : '',
+        'referer' => isset($_SERVER ['HTTP_REFERER']) ? $_SERVER ['HTTP_REFERER'] : '',
+        'postdata' => '',
+        'info' => '',
+      );
+      $result2 = $api->formsSendActivationMail($settings['key'], $block->formid, $form_state['values']['email'], $iodata);
+
+      if ($result2->status == 'SUCCESS') {
+        drupal_set_message(t('Your submission was successful. A mail has been sent to you for confirming your subscription.'));
+      }
+      else {
+        drupal_set_message(t('An error occured while sending the confirmation mail.'), 'error');
+      }
+    }
   }
   else {
     drupal_set_message(t('Error: Your submission failed.'), 'error');
