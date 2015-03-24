@@ -31,7 +31,7 @@ function cleverreach_subscribe_form($form, &$form_state, CleverReachBlock $block
   );
 
   foreach ($block->fields as $field_name => $field) {
-    if ($field['active']) {
+    if (!empty($field['active'])) {
       $form['fields'][$field_name] = _cleverreach_build_block_field($field_name, $field);
     }
   }
@@ -64,7 +64,7 @@ function cleverreach_subscribe_form_submit($form, &$form_state) {
   $subscribe_attributes = array();
   foreach ($block->fields as $field_name => $field) {
 
-    if ($field['active']) {
+    if (!empty($field['active'])) {
       if ($field['display'] == 'date') {
         $subscribe_attributes[] = array(
           'key' => $field_name,
