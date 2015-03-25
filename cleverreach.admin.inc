@@ -61,7 +61,7 @@ function cleverreach_block_form($form, &$form_state, $block, $op = 'edit', $enti
     '#type' => 'checkbox',
     '#title' => t('Send activation mail'),
     '#default_value' => $block->send_activation_mail,
-    '#description' => t('Check to make the block usable on the block admin page.'),
+    '#description' => t('When checked, an activation mail is send to verify the user (Double Opt-In).'),
   );
 
   // Get the latest values from the form state as we have an ajaxified form.
