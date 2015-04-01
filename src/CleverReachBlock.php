@@ -53,6 +53,20 @@ class CleverReachBlock extends Entity {
   public $active = 0;
 
   /**
+   * Setting to send activation mail or not.
+   *
+   * @var int
+   */
+  public $send_activation_mail = 0;
+
+  /**
+   * ID of the selected associated form configuration.
+   *
+   * @var null
+   */
+  public $formid = NULL;
+
+  /**
    * {@inheritdoc}
    */
   public function __construct($values = array()) {

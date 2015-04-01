@@ -57,17 +57,34 @@ function cleverreach_block_form($form, &$form_state, $block, $op = 'edit', $enti
     ),
   );
 
+  $form['send_activation_mail'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Send activation mail'),
+    '#default_value' => $block->send_activation_mail,
+    '#description' => t('When checked, an activation mail is send to verify the user (Double Opt-In).'),
+  );
+
   // Get the latest values from the form state as we have an ajaxified form.
   $listid = isset($form_state['values']['listid']) ? $form_state['values']['listid'] : $block->listid;
   $values = isset($form_state['values']['fields']) ? $form_state['values']['fields'] : $block->fields;
 
-  if (empty($listid)) {
-    $form['fields'] = array(
-      '#markup' => '<div id="cleverreach-fields"></div>',
+  $form['listid_dependent'] = array(
+    '#type' => 'container',
+    '#id' => 'cleverreach-fields',
+  );
+
+  if (!empty($listid)) {
+
+    $form['listid_dependent']['formid'] = array(
+      '#type' => 'select',
+      '#title' => t('Form configuration'),
+      '#description' => t('Select the associated CleverReach form to be used for activation mail.'),
+      '#options' => cleverreach_get_form_options($listid),
+      '#empty_option' => '- No form -',
+      '#default_value' => $block->formid,
     );
-  }
-  else {
-    $form['fields'] = array(
+
+    $form['listid_dependent']['fields'] = array(
       '#type' => 'fieldset',
       '#title' => t('Fields'),
       '#id' => 'cleverreach-fields',
@@ -86,7 +103,7 @@ function cleverreach_block_form($form, &$form_state, $block, $op = 'edit', $enti
       '#caption' => t('Select fields'),
     );
 
-    $form['fields']['email'] = array(
+    $form['listid_dependent']['fields']['email'] = array(
       'name' => array(
         '#type' => 'item',
         '#markup' => 'email',
@@ -108,7 +125,7 @@ function cleverreach_block_form($form, &$form_state, $block, $op = 'edit', $enti
     );
 
     // Add additional attribute based fields.
-    $form['fields'] += _cleverreach_block_fields_subform($listid, $values);
+    $form['listid_dependent']['fields'] += _cleverreach_block_fields_subform($listid, $values);
   }
 
   $form['actions'] = array('#type' => 'actions');
@@ -118,6 +135,17 @@ function cleverreach_block_form($form, &$form_state, $block, $op = 'edit', $enti
     '#weight' => 40,
   );
   return $form;
+}
+
+/**
+ * Form API validate callback for the block form.
+ */
+function cleverreach_block_form_validate(&$form, &$form_state) {
+  if ($form_state['values']['send_activation_mail']
+    && empty($form_state['values']['formid'])) {
+    form_set_error('formid', t('Currently activation mails can only be send via
+      a pre-configured CleverReach form. Therefore you must select a form.'));
+  }
 }
 
 /**
@@ -136,7 +164,7 @@ function cleverreach_block_form_submit(&$form, &$form_state) {
  * @return mixed
  */
 function _cleverreach_block_form_ajax_fields($form, &$form_state) {
-  return $form['fields'];
+  return $form['listid_dependent'];
 }
 
 /**
