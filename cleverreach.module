@@ -164,6 +164,15 @@ function cleverreach_get_single_group($crgid) {
   if (isset($groups[$crgid])) {
     return $groups[$crgid];
   }
+  // In the case the ID is not cached, we create an in memory "Missing group".
+  else {
+    watchdog('CleverReach', 'Group @listid cannot be fetched via API. Check your CleverReach API-Key or update the newsletter configuration.', array('@listid' => $crgid));
+
+    return new CleverReachGroup(array(
+      'id' => $crgid,
+      'name' => t('<Missing group>'),
+    ));
+  }
 }
 
 /**
