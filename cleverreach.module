@@ -237,8 +237,15 @@ function _cleverreach_update_group_cache() {
   $groups = array();
 
   if (is_array($settings)) {
-    $api = new SoapClient($settings["url"]);
-    $result = $api->groupGetList($settings["key"]);
+
+    try {
+      $api = new SoapClient($settings["url"]);
+      $result = $api->groupGetList($settings["key"]);
+    }
+    catch (\Exception $e) {
+      watchdog('CleverReach', 'Error updating group cache: @message', array('@message' => $e->getMessage()), WATCHDOG_ERROR);
+      return array();
+    }
 
     if ($result->status == 'SUCCESS') {
 
@@ -426,8 +433,15 @@ function cleverreach_get_forms($group_id) {
   $forms = array();
 
   if (is_array($settings)) {
-    $api = new SoapClient($settings["url"]);
-    $result = $api->formsGetList($settings["key"], $group_id);
+
+    try {
+      $api = new SoapClient($settings["url"]);
+      $result = $api->formsGetList($settings["key"], $group_id);
+    }
+    catch (\Exception $e) {
+      watchdog('CleverReach', 'Error retrieving forms: @message', array('@message' => $e->getMessage()), WATCHDOG_ERROR);
+      return array();
+    }
 
     if ($result->status == 'SUCCESS') {
       foreach ($result->data as $data) {

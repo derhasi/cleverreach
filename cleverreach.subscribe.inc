@@ -96,8 +96,16 @@ function cleverreach_subscribe_form_submit($form, &$form_state) {
   );
 
   $settings = _cleverreach_get_settings();
-  $api = new SoapClient($settings["url"]);
-  $result = $api->receiverAdd($settings["key"], $block->listid, $params);
+
+  try {
+    $api = new SoapClient($settings["url"]);
+    $result = $api->receiverAdd($settings["key"], $block->listid, $params);
+  }
+  catch (\Exception $e) {
+    watchdog('CleverReach', 'Form submission failed: @message', array('@message' => $e->getMessage()), WATCHDOG_ERROR);
+    drupal_set_message(t('Server Error.'), 'error');
+    return;
+  }
 
   if ($result->status == "SUCCESS") {
 
